@@ -12,7 +12,8 @@ Add it in your root build.gradle at the end of repositories:
 Step 2. Add the dependency
 ```java
     dependencies {
-	        implementation 'com.gitlab.linpeixu:easyrequest:1.1.7'
+                implementation 'com.github.linpeixu:EasyRequest:1.1.7'
+	        //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.7'
 	}
 ```
 之前写过一篇[《Android快速集成网络库功能》](https://www.toutiao.com/i6921606978686943752/)，思前想后感觉还是有点局限性，只限于接口端采用微服务架构且app端采用retrofit+okhttp+rxjava的网络框架，这对其它对接入单服务接口类型的app端，或者是采用其它网络框架的app端就不适用了，因此就有了这篇文章。
