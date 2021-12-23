@@ -412,6 +412,10 @@ public class EasyRequest {
          */
         RequestType requestType;
         /**
+         * 请求类型
+         */
+        Method method;
+        /**
          * 请求参数
          */
         Map<String, Object> params;
@@ -452,6 +456,7 @@ public class EasyRequest {
         private Request(Builder builder) {
             uuid = UUID.randomUUID().toString();
             requestType = builder.requestType;
+            method = builder.method;
             params = builder.params;
             requestListener = builder.requestListener;
             transformListener = builder.transformListener;
@@ -523,8 +528,15 @@ public class EasyRequest {
             return TAG;
         }
 
+        /**
+         * @deprecated 推荐使用 {@link EasyRequest.Request#getMethod()}
+         */
         public RequestType getType() {
             return requestType;
+        }
+
+        public Method getMethod() {
+            return method;
         }
 
         public Map<String, Object> getParams() {
@@ -550,6 +562,7 @@ public class EasyRequest {
 
         public static class Builder {
             RequestType requestType;
+            Method method;
             Map<String, Object> params;
             RequestListener requestListener;
             TransformListener transformListener;
@@ -559,8 +572,16 @@ public class EasyRequest {
             String name;
             String TAG;
 
+            /**
+             * @deprecated 推荐使用 {@link EasyRequest.Request.Builder#method(EasyRequest.Method)}
+             */
             public Builder type(RequestType requestType) {
                 this.requestType = requestType;
+                return this;
+            }
+
+            public Builder method(Method method) {
+                this.method = method;
                 return this;
             }
 
@@ -631,8 +652,20 @@ public class EasyRequest {
 
     /**
      * 请求方法
+     *
+     * @deprecated 推荐使用 {@link EasyRequest.Method}
      */
     public enum RequestType {
+        GET,
+        POST,
+        PUT,
+        DELETE
+    }
+
+    /**
+     * 请求方法
+     */
+    public enum Method {
         GET,
         POST,
         PUT,

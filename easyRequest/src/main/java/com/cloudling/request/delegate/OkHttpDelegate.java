@@ -80,7 +80,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             config.getListener().requestBefore();
         }
         Request.Builder builder = new Request.Builder();
-        if (config.getType() == EasyRequest.RequestType.GET) {
+        if (config.getMethod() == EasyRequest.Method.GET || config.getType() == EasyRequest.RequestType.GET) {
             if (config.getParams() != null) {
                 HttpUrl.Builder urlBuilder = HttpUrl.parse(config.getUrl()).newBuilder();
                 for (Map.Entry<String, Object> entry : config.getParams().entrySet()) {
@@ -92,7 +92,10 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             }
         } else if (config.getType() == EasyRequest.RequestType.POST
                 || config.getType() == EasyRequest.RequestType.PUT
-                || config.getType() == EasyRequest.RequestType.DELETE) {
+                || config.getType() == EasyRequest.RequestType.DELETE
+                || config.getMethod() == EasyRequest.Method.POST
+                || config.getMethod() == EasyRequest.Method.PUT
+                || config.getMethod() == EasyRequest.Method.DELETE) {
             builder.url(config.getUrl());
             RequestBody body;
             if (config.getParams() != null) {
@@ -102,11 +105,11 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             } else {
                 body = RequestBody.create(null, "");
             }
-            if (config.getType() == EasyRequest.RequestType.POST) {
+            if (config.getMethod() == EasyRequest.Method.POST || config.getType() == EasyRequest.RequestType.POST) {
                 builder.post(body);
-            } else if (config.getType() == EasyRequest.RequestType.PUT) {
+            } else if (config.getMethod() == EasyRequest.Method.PUT || config.getType() == EasyRequest.RequestType.PUT) {
                 builder.put(body);
-            } else if (config.getType() == EasyRequest.RequestType.DELETE) {
+            } else if (config.getMethod() == EasyRequest.Method.DELETE || config.getType() == EasyRequest.RequestType.DELETE) {
                 builder.delete(body);
             }
         } else {
