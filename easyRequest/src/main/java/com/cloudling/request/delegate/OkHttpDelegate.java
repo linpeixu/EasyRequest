@@ -37,7 +37,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     /**
      * 缓存请求
      */
-    private ConcurrentHashMap<String, EasyRequest.Request> mRequestMap;
+    private ConcurrentHashMap<String, EasyRequest.Request<?, ?>> mRequestMap;
 
     public OkHttpDelegate() {
         mRequestMap = new ConcurrentHashMap<>();
@@ -70,7 +70,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     }
 
     @Override
-    public void request(EasyRequest.Request config) {
+    public <S, F> void request(EasyRequest.Request<S, F> config) {
         if (config == null) {
             return;
         }
@@ -160,7 +160,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     }
 
     @Override
-    public void remove(EasyRequest.Request config) {
+    public <S, F> void remove(EasyRequest.Request<S, F> config) {
         if (config != null) {
             mRequestMap.remove(config.getUUid());
         }

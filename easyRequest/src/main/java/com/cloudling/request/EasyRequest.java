@@ -4,6 +4,7 @@ import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.cloudling.request.converter.BaseConverterFactory;
 import com.cloudling.request.delegate.OkHttpDelegate;
 
 import org.json.JSONObject;
@@ -223,7 +224,7 @@ public class EasyRequest {
         return debug && mILog != null;
     }
 
-    public void request(Request config) {
+    public <S, F> void request(Request<S, F> config) {
         if (canPrintLog() && config != null) {
             StringBuilder builder = new StringBuilder();
             builder.append("[request]")
@@ -235,33 +236,63 @@ public class EasyRequest {
                     .append(config.params != null ? new JSONObject(config.params).toString() : null);
             logD(builder.toString());
         }
-        if (config != null && config.mockRequest != null && config.getListener() != null) {
-            config.getListener().requestBefore();
+        if (config != null && config.mockRequest != null && (config.getListener() != null || config.converterListener != null)) {
+            if (config.getListener() != null) {
+                config.getListener().requestBefore();
+            }
+            if (config.converterListener instanceof WholeConverterListener) {
+                ((WholeConverterListener<S, F>) config.converterListener).requestBefore();
+            }
             if (config.mockRequest.requestDuration() > 0 && mHandler != null) {
                 mHandler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         if (config.mockRequest.callbackType() == MockRequestCallbackType.SUCCESS) {
-                            config.getListener().onSuccess(config.mockRequest.result());
+                            if (config.getListener() != null) {
+                                config.getListener().onSuccess(config.mockRequest.result());
+                            }
+                            if (config.converterListener != null && config.converterFactory != null) {
+                                config.converterListener.onSuccess(config.converterFactory.converterSuccess(config.mockRequest.result()));
+                            }
                         } else if (config.mockRequest.callbackType() == MockRequestCallbackType.FAIL) {
-                            config.getListener().onFail(config.mockRequest.result());
+                            if (config.getListener() != null) {
+                                config.getListener().onFail(config.mockRequest.result());
+                            }
+                            if (config.converterListener != null && config.converterFactory != null) {
+                                config.converterListener.onFail(config.converterFactory.converterFail(config.mockRequest.result()));
+                            }
                         }
                     }
                 }, config.mockRequest.requestDuration() * 1000L);
             } else {
                 if (config.mockRequest.callbackType() == MockRequestCallbackType.SUCCESS) {
-                    config.getListener().onSuccess(config.mockRequest.result());
+                    if (config.getListener() != null) {
+                        config.getListener().onSuccess(config.mockRequest.result());
+                    }
+                    if (config.converterListener != null && config.converterFactory != null) {
+                        config.converterListener.onSuccess(config.converterFactory.converterSuccess(config.mockRequest.result()));
+                    }
                 } else if (config.mockRequest.callbackType() == MockRequestCallbackType.FAIL) {
-                    config.getListener().onFail(config.mockRequest.result());
+                    if (config.getListener() != null) {
+                        config.getListener().onFail(config.mockRequest.result());
+                    }
+                    if (config.converterListener != null && config.converterFactory != null) {
+                        config.converterListener.onFail(config.converterFactory.converterFail(config.mockRequest.result()));
+                    }
                 }
             }
-            config.getListener().requestAfter();
+            if (config.getListener() != null) {
+                config.getListener().requestAfter();
+            }
+            if (config.converterListener instanceof WholeConverterListener) {
+                ((WholeConverterListener<S, F>) config.converterListener).requestAfter();
+            }
         } else {
             mRequestDelegate.request(config);
         }
     }
 
-    public void remove(Request config) {
+    public <S, F> void remove(Request<S, F> config) {
         mRequestDelegate.remove(config);
         if (canPrintLog() && config != null) {
             StringBuilder builder = new StringBuilder();
@@ -317,6 +348,41 @@ public class EasyRequest {
          * @param result 回调参数
          */
         void onFail(String result);
+    }
+
+    /**
+     * 请求结果监听（带请求开始和结束回调）
+     */
+    public interface ConverterListener<S, F> {
+        /**
+         * 成功
+         *
+         * @param result 回调参数
+         */
+        void onSuccess(S result);
+
+        /**
+         * 失败
+         *
+         * @param result 回调参数
+         */
+        void onFail(F result);
+
+    }
+
+    /**
+     * 请求结果监听（带请求开始和结束回调）
+     */
+    public interface WholeConverterListener<S, F> extends ConverterListener<S, F> {
+        /**
+         * 请求开始回调
+         */
+        void requestBefore();
+
+        /**
+         * 请求结束回调
+         */
+        void requestAfter();
     }
 
     /**
@@ -406,7 +472,7 @@ public class EasyRequest {
     /**
      * 请求代理
      */
-    public static class Request {
+    public static class Request<S, F> {
         /**
          * 请求类型
          */
@@ -452,8 +518,10 @@ public class EasyRequest {
          */
         final String uuid;
         final String TAG;
+        BaseConverterFactory<S, F> converterFactory;
+        ConverterListener<S, F> converterListener;
 
-        private Request(Builder builder) {
+        private Request(Builder<S, F> builder) {
             uuid = UUID.randomUUID().toString();
             requestType = builder.requestType;
             method = builder.method;
@@ -461,16 +529,21 @@ public class EasyRequest {
             requestListener = builder.requestListener;
             transformListener = builder.transformListener;
             mockRequest = builder.mockRequest;
+            converterFactory = builder.converterFactory;
+            converterListener = builder.converterListener;
             host = builder.host;
             path = builder.path;
             name = builder.name;
             TAG = builder.TAG;
-            if (requestListener != null) {
+            if (requestListener != null || converterListener != null) {
                 realRequestListener = new WholeRequestListener() {
                     @Override
                     public void requestBefore() {
                         if (requestListener instanceof WholeRequestListener) {
                             ((WholeRequestListener) requestListener).requestBefore();
+                        }
+                        if (converterListener instanceof WholeConverterListener) {
+                            ((WholeConverterListener<S, F>) converterListener).requestBefore();
                         }
                     }
 
@@ -478,6 +551,9 @@ public class EasyRequest {
                     public void requestAfter() {
                         if (requestListener instanceof WholeRequestListener) {
                             ((WholeRequestListener) requestListener).requestAfter();
+                        }
+                        if (converterListener instanceof WholeConverterListener) {
+                            ((WholeConverterListener<S, F>) converterListener).requestAfter();
                         }
                     }
 
@@ -487,14 +563,29 @@ public class EasyRequest {
                             String realResult = transformListener.onTransformResult(result);
                             if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                     || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
-                                requestListener.onSuccess(realResult);
+                                if (requestListener != null) {
+                                    requestListener.onSuccess(realResult);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                }
                                 EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
                             } else if (transformListener.callbackType() == TransformCallbackType.FAIL) {
-                                requestListener.onFail(transformListener.onTransformResult(result));
+                                if (requestListener != null) {
+                                    requestListener.onFail(realResult);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onFail(converterFactory.converterFail(realResult));
+                                }
                                 EasyRequest.getInstance().logE("[onFail]result：" + realResult);
                             }
                         } else {
-                            requestListener.onSuccess(result);
+                            if (requestListener != null) {
+                                requestListener.onSuccess(result);
+                            }
+                            if (converterListener != null && converterFactory != null) {
+                                converterListener.onSuccess(converterFactory.converterSuccess(result));
+                            }
                             EasyRequest.getInstance().logI("[onSuccess]result：" + result);
                         }
                     }
@@ -505,14 +596,29 @@ public class EasyRequest {
                             String realResult = transformListener.onTransformResult(result);
                             if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                     || transformListener.callbackType() == TransformCallbackType.FAIL) {
-                                requestListener.onFail(realResult);
+                                if (requestListener != null) {
+                                    requestListener.onFail(realResult);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onFail(converterFactory.converterFail(realResult));
+                                }
                                 EasyRequest.getInstance().logE("[onFail]result：" + realResult);
                             } else if (transformListener.callbackType() == TransformCallbackType.SUCCESS) {
-                                requestListener.onSuccess(transformListener.onTransformResult(result));
+                                if (requestListener != null) {
+                                    requestListener.onSuccess(realResult);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                }
                                 EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
                             }
                         } else {
-                            requestListener.onFail(result);
+                            if (requestListener != null) {
+                                requestListener.onFail(result);
+                            }
+                            if (converterListener != null && converterFactory != null) {
+                                converterListener.onFail(converterFactory.converterFail(result));
+                            }
                             EasyRequest.getInstance().logE("[onFail]result：" + result);
                         }
                     }
@@ -529,7 +635,7 @@ public class EasyRequest {
         }
 
         /**
-         * @deprecated 推荐使用 {@link EasyRequest.Request#getMethod()}
+         * @deprecated 推荐使用 {@link Request#getMethod()}
          */
         public RequestType getType() {
             return requestType;
@@ -560,7 +666,7 @@ public class EasyRequest {
             return builder.toString();
         }
 
-        public static class Builder {
+        public static class Builder<S, F> {
             RequestType requestType;
             Method method;
             Map<String, Object> params;
@@ -571,62 +677,74 @@ public class EasyRequest {
             String path;
             String name;
             String TAG;
+            BaseConverterFactory<S, F> converterFactory;
+            ConverterListener<S, F> converterListener;
 
             /**
-             * @deprecated 推荐使用 {@link EasyRequest.Request.Builder#method(EasyRequest.Method)}
+             * @deprecated 推荐使用 {@link Builder#method(Method)}
              */
-            public Builder type(RequestType requestType) {
+            public Builder<S, F> type(RequestType requestType) {
                 this.requestType = requestType;
                 return this;
             }
 
-            public Builder method(Method method) {
+            public Builder<S, F> method(Method method) {
                 this.method = method;
                 return this;
             }
 
-            public Builder params(Map<String, Object> params) {
+            public Builder<S, F> params(Map<String, Object> params) {
                 this.params = params;
                 return this;
             }
 
-            public Builder listener(RequestListener listener) {
+            public Builder<S, F> listener(RequestListener listener) {
                 this.requestListener = listener;
                 return this;
             }
 
-            public Builder transformResult(TransformListener listener) {
+            public Builder<S, F> listener(ConverterListener<S, F> converterListener) {
+                this.converterListener = converterListener;
+                return this;
+            }
+
+            public Builder<S, F> transformResult(TransformListener listener) {
                 this.transformListener = listener;
                 return this;
             }
 
-            public Builder mockRequest(MockRequest mockRequest) {
+            public Builder<S, F> mockRequest(MockRequest mockRequest) {
                 this.mockRequest = mockRequest;
                 return this;
             }
 
-            public Builder host(String host) {
+            public Builder<S, F> host(String host) {
                 this.host = host;
                 return this;
             }
 
-            public Builder path(String path) {
+            public Builder<S, F> path(String path) {
                 this.path = path;
                 return this;
             }
 
-            public Builder name(String name) {
+            public Builder<S, F> name(String name) {
                 this.name = name;
                 return this;
             }
 
-            public Builder tag(String TAG) {
+            public Builder<S, F> tag(String TAG) {
                 this.TAG = TAG;
                 return this;
             }
 
-            public Request build() {
-                return new Request(this);
+            public Builder<S, F> addConverterFactory(BaseConverterFactory<S, F> converterFactory) {
+                this.converterFactory = converterFactory;
+                return this;
+            }
+
+            public Request<S, F> build() {
+                return new Request<>(this);
             }
         }
 
@@ -653,7 +771,7 @@ public class EasyRequest {
     /**
      * 请求方法
      *
-     * @deprecated 推荐使用 {@link EasyRequest.Method}
+     * @deprecated 推荐使用 {@link Method}
      */
     public enum RequestType {
         GET,
@@ -679,12 +797,12 @@ public class EasyRequest {
         /**
          * 发起请求
          */
-        void request(Request config);
+        <S, F> void request(Request<S, F> config);
 
         /**
          * 移除请求
          */
-        void remove(Request config);
+        <S, F> void remove(Request<S, F> config);
 
         /**
          * 通过tag移除请求

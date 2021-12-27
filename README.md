@@ -12,10 +12,71 @@ Add it in your root build.gradle at the end of repositories:
 Step 2. Add the dependency
 ```java
     dependencies {
-                implementation 'com.github.linpeixu:EasyRequest:1.1.8'
-	        //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.8'
+	        implementation 'com.github.linpeixu:EasyRequest:1.1.12'
+            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.12'
 	}
 ```
+
+若编译过程中报Duplicate class错误，可能是你的项目也引入了Okhttp，尝试在module下的gradle文件下
+的android标签里加入如下：
+
+```java
+    configurations {
+            cleanedAnnotations
+            compile.exclude group: 'com.squareup.okio' , module:'okio'
+            compile.exclude group: 'com.squareup.okhttp3' , module:'okhttp'
+    }
+```
+若还有报其它Duplicate class错误，则根据具体的报错信息添加对应的configurations即可。
+
+添加支持Gson解析Json的步骤
+Step 1.
+```java
+    dependencies {
+	        implementation 'com.github.linpeixu:GsonConverterFactory:1.0.2 '
+            //或者implementation 'com.gitlab.linpeixu:GsonConverterFactory:1.0.2'
+	}
+```
+Step 2.
+发起网络请求设置的回调listener传ConverterListener<S,F>（S和F为泛型，分别表示请求成功和失败结果经Gson解析后
+的对象类型），假设我们需将成功的结果转为自定义的Person，则使用实例如下：
+```java
+EasyRequest.getInstance().request(new EasyRequest.Request.Builder<Person,String>()
+                    .method(EasyRequest.Method.POST)
+                    .name("user")//设置微服务名，对应的host在NetworkConfig设置server时设置
+                    .path("login/")
+                    .params(new EasyRequest.RequestParam()
+                            .put("mobile", "13000000000")
+                            .put("password", "123456")
+                            .build())
+                    //添加Json转换工厂，具体可传的参数详见GsonConverterFactory工程
+                    .addConverterFactory(new TypeClassConverterFactory<Person, String>() {
+                    @Override
+                    public Class<String> getFailClassType() {
+                        return String.class;
+                    }
+
+                    @Override
+                    public Type getSuccessType() {
+                        return new TypeToken<Person>() {
+                        }.getType();
+                    }
+                    })
+                    .listener(new EasyRequest.ConverterListener<Person,String>() {
+                        @Override
+                        public void onSuccess(Person result) {
+                           /*请求成功回调，result为接口返回的json数据经Gson解析后的对象*/
+                        }
+
+                        @Override
+                        public void onFail(String result) {
+                            /*请求失败回调，result为接口返回的数据经Gson解析后的对象*/
+                        }
+                    })
+                    .build());
+```
+
+
 之前写过一篇[《Android快速集成网络库功能》](https://www.toutiao.com/i6921606978686943752/)，思前想后感觉还是有点局限性，只限于接口端采用微服务架构且app端采用retrofit+okhttp+rxjava的网络框架，这对其它对接入单服务接口类型的app端，或者是采用其它网络框架的app端就不适用了，因此就有了这篇文章。
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/810e7dff300441938bbd685552b62ad7.jpg?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBA54mnLueJpw==,size_20,color_FFFFFF,t_70,g_se,x_16#pic_center)
 
@@ -24,7 +85,7 @@ Step 2. Add the dependency
 微服务架构的接口：
 
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
+EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
                     .method(EasyRequest.Method.POST)
                     .name("user")//设置微服务名，对应的host在NetworkConfig设置server时设置
                     .path("login/")
@@ -49,7 +110,7 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
 单服务架构的接口：
 
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
+EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
                     .method(EasyRequest.Method.POST)
                     .host("https://api.test.com/")
                     .path("login/")
@@ -90,7 +151,7 @@ EasyRequest.getInstance().removeByUUID(uuid);
 扩展
 1、我们支持将网络请求的回调进行转换，比如将成功的网络请求强制转为失败、将网络请求返回的json提前处理等，示例如下
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
+EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
                 .method(EasyRequest.Method.POST)
                 .host("https://api.test.com/")
                 .path("login/")
@@ -127,7 +188,7 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
 2、模拟网络请求
 这里需要注意的是，配置模拟网络请求实际上不会发起网络请求，而是直接回调，且优先级大于transformResult
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
+EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
                 .method(EasyRequest.Method.POST)
                 .host("https://api.test.com/")
                 .path("login/")
@@ -653,7 +714,7 @@ NetworkConfig.getInstance().setService(new DefaultSingleService() {
 微服务接口架构请求示例：
 
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
+EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
                     .method(EasyRequest.Method.POST)
                     .name("user")//设置微服务名，对应的host在NetworkConfig设置server时设置
                     .path("login/")
@@ -678,7 +739,7 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
 单服务接口架构请求示例：
 
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder()
+EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
                     .method(EasyRequest.Method.POST)
                     .host("https://api.test.com/")
                     .path("login/")
