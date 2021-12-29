@@ -12,8 +12,8 @@ Add it in your root build.gradle at the end of repositories:
 Step 2. Add the dependency
 ```java
     dependencies {
-	        implementation 'com.github.linpeixu:EasyRequest:1.1.15'
-            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.15'
+	        implementation 'com.github.linpeixu:EasyRequest:1.1.16'
+            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.16'
 	}
 ```
 
@@ -33,19 +33,19 @@ Step 2. Add the dependency
 Step 1.
 ```java
     dependencies {
-	        implementation 'com.github.linpeixu:GsonConverterFactory:1.0.2 '
-            //或者implementation 'com.gitlab.linpeixu:GsonConverterFactory:1.0.2'
+	        implementation 'com.gitlab.linpeixu:GsonConverterFactory:1.0.2 '
+            //或者implementation 'com.github.linpeixu:GsonConverterFactory:1.0.2'
 	}
 ```
 Step 2.
 发起网络请求设置的回调listener传ConverterListener<S,F>（S和F为泛型，分别表示请求成功和失败结果经Gson解析后
 的对象类型），假设我们需将成功的结果转为自定义的Person，则使用实例如下：
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder<Person,String>()
+EasyRequest.getInstance().request(new BaseRequest.Builder<Person,String>()
                     .method(EasyRequest.Method.POST)
                     .name("user")//设置微服务名，对应的host在NetworkConfig设置server时设置
                     .path("login/")
-                    .params(new EasyRequest.RequestParam()
+                    .params(new RequestParam()
                             .put("mobile", "13000000000")
                             .put("password", "123456")
                             .build())
@@ -62,7 +62,7 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder<Person,String>
                         }.getType();
                     }
                     })
-                    .listener(new EasyRequest.ConverterListener<Person,String>() {
+                    .listener(new ConverterListener<Person,String>() {
                         @Override
                         public void onSuccess(Person result) {
                            /*请求成功回调，result为接口返回的json数据经Gson解析后的对象*/
@@ -85,15 +85,15 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder<Person,String>
 微服务架构的接口：
 
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
-                    .method(EasyRequest.Method.POST)
+EasyRequest.getInstance().request(new BaseRequest.Builder<String,String>()
+                    .method(Method.POST)
                     .name("user")//设置微服务名，对应的host在NetworkConfig设置server时设置
                     .path("login/")
-                    .params(new EasyRequest.RequestParam()
+                    .params(new RequestParam()
                             .put("mobile", "13000000000")
                             .put("password", "123456")
                             .build())
-                    .listener(new EasyRequest.RequestListener() {
+                    .listener(new RequestListener() {
                         @Override
                         public void onSuccess(String result) {
                            /*请求成功回调，result为接口返回的json数据*/
@@ -110,15 +110,15 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>
 单服务架构的接口：
 
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
-                    .method(EasyRequest.Method.POST)
+EasyRequest.getInstance().request(DefaultRequest.create()
+                    .method(Method.POST)
                     .host("https://api.test.com/")
                     .path("login/")
-                    .params(new EasyRequest.RequestParam()
+                    .params(new RequestParam()
                             .put("mobile", "13000000000")
                             .put("password", "123456")
                             .build())
-                    .listener(new EasyRequest.RequestListener() {
+                    .listener(new RequestListener() {
                         @Override
                         public void onSuccess(String result) {
                            /*请求成功回调，result为接口返回的json数据*/
@@ -151,15 +151,15 @@ EasyRequest.getInstance().removeByUUID(uuid);
 扩展
 1、我们支持将网络请求的回调进行转换，比如将成功的网络请求强制转为失败、将网络请求返回的json提前处理等，示例如下
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
-                .method(EasyRequest.Method.POST)
+EasyRequest.getInstance().request(DefaultRequest.create()
+                .method(Method.POST)
                 .host("https://api.test.com/")
                 .path("login/")
-                .params(new EasyRequest.RequestParam()
+                .params(new RequestParam()
                         .put("mobile", "13000000000")
                         .put("password", "123456")
                         .build())
-                .transformResult(new EasyRequest.TransformListener() {
+                .transformResult(new TransformListener() {
                     @Override
                     public String onTransformResult(String result) {
                         /*转换网络请求返回的数据*/
@@ -167,12 +167,12 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>
                     }
 
                     @Override
-                    public EasyRequest.TransformCallbackType callbackType() {
+                    public TransformCallbackType callbackType() {
                         /*将网络请求结果强制置为失败*/
-                        return EasyRequest.TransformCallbackType.FAIL;
+                        return TransformCallbackType.FAIL;
                     }
                 })
-                .listener(new EasyRequest.RequestListener() {
+                .listener(new RequestListener() {
                     @Override
                     public void onSuccess(String result) {
                         /*请求成功回调，result为接口返回的json数据*/
@@ -188,26 +188,25 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>
 2、模拟网络请求
 这里需要注意的是，配置模拟网络请求实际上不会发起网络请求，而是直接回调，且优先级大于transformResult
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
-                .method(EasyRequest.Method.POST)
+EasyRequest.getInstance().request(DefaultRequest.create()
+                .method(Method.POST)
                 .host("https://api.test.com/")
                 .path("login/")
-                .params(new EasyRequest.RequestParam()
+                .params(new RequestParam()
                         .put("mobile", "13000000000")
                         .put("password", "123456")
                         .build())
-                .mockRequest(new EasyRequest.MockRequest() {
+                .mockRequest(new MockRequest() {
                     @Override
                     public int requestDuration() {
                         /*配置模拟网络请求的时长*/
-                        /*需要注意的是如果EasyRequest没有设置setHandlerForMockRequest，则这里的时长不会生效*/
-                        return 1;
+                       return 1;
                     }
 
                     @Override
-                    public EasyRequest.MockRequestCallbackType callbackType() {
+                    public MockRequestCallbackType callbackType() {
                         /*配置模拟网络请求成功*/
-                        return EasyRequest.MockRequestCallbackType.SUCCESS;
+                        return MockRequestCallbackType.SUCCESS;
                     }
 
                     @Override
@@ -215,7 +214,7 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>
                         /*配置模拟网络请求返回的数据*/
                         return "{\"status\":0,\"message\":\"请求成功\"}";
                     }
-                }).listener(new EasyRequest.RequestListener() {
+                }).listener(new RequestListener() {
                     @Override
                     public void onSuccess(String result) {
                         /*请求成功回调，result为接口返回的json数据*/
@@ -265,7 +264,7 @@ import okhttp3.Response;
  * 联系：1966353889@qq.com
  * 日期: 2021/12/7
  */
-public class OkHttpDelegate implements EasyRequest.RequestDelegate {
+public class OkHttpDelegate implements RequestDelegate {
     /**
      * okHttp请求实例
      */
@@ -273,7 +272,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     /**
      * 缓存请求
      */
-    private ConcurrentHashMap<String, EasyRequest.Request> mRequestMap;
+    private ConcurrentHashMap<String, BaseRequest> mRequestMap;
 
     public OkHttpDelegate() {
         mRequestMap = new ConcurrentHashMap<>();
@@ -306,7 +305,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     }
 
     @Override
-    public void request(EasyRequest.Request config) {
+    public void request(BaseRequest config) {
         if (config == null) {
             return;
         }
@@ -316,7 +315,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             config.getListener().requestBefore();
         }
         Request.Builder builder = new Request.Builder();
-        if (config.getMethod() == EasyRequest.Method.GET || config.getType() == EasyRequest.RequestType.GET) {
+        if (config.getMethod() == Method.GET || config.getType() == RequestType.GET) {
             if (config.getParams() != null) {
                 HttpUrl.Builder urlBuilder = HttpUrl.parse(config.getUrl()).newBuilder();
                 for (Map.Entry<String, Object> entry : config.getParams().entrySet()) {
@@ -326,12 +325,12 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             } else {
                 builder.url(config.getUrl());
             }
-        } else if (config.getType() == EasyRequest.RequestType.POST
-                || config.getType() == EasyRequest.RequestType.PUT
-                || config.getType() == EasyRequest.RequestType.DELETE
-                || config.getMethod() == EasyRequest.Method.POST
-                || config.getMethod() == EasyRequest.Method.PUT
-                || config.getMethod() == EasyRequest.Method.DELETE) {
+        } else if (config.getType() == RequestType.POST
+                || config.getType() == RequestType.PUT
+                || config.getType() == RequestType.DELETE
+                || config.getMethod() == Method.POST
+                || config.getMethod() == Method.PUT
+                || config.getMethod() == Method.DELETE) {
             builder.url(config.getUrl());
             RequestBody body;
             if (config.getParams() != null) {
@@ -341,11 +340,11 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             } else {
                 body = RequestBody.create(null, "");
             }
-            if (config.getMethod() == EasyRequest.Method.POST || config.getType() == EasyRequest.RequestType.POST) {
+            if (config.getMethod() == Method.POST || config.getType() == RequestType.POST) {
                 builder.post(body);
-            } else if (config.getMethod() == EasyRequest.Method.PUT || config.getType() == EasyRequest.RequestType.PUT) {
+            } else if (config.getMethod() == Method.PUT || config.getType() == RequestType.PUT) {
                 builder.put(body);
-            } else if (config.getMethod() == EasyRequest.Method.DELETE || config.getType() == EasyRequest.RequestType.DELETE) {
+            } else if (config.getMethod() == Method.DELETE || config.getType() == RequestType.DELETE) {
                 builder.delete(body);
             }
         } else {
@@ -396,7 +395,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     }
 
     @Override
-    public void remove(EasyRequest.Request config) {
+    public void remove(BaseRequest config) {
         if (config != null) {
             mRequestMap.remove(config.getUUid());
         }
@@ -451,7 +450,7 @@ import java.util.Map;
 
 /**
  * 描述: 网络请求配置类
- * 作者: lpx
+ * 联系: 1966353889@qq.com
  * 日期: 2021/12/3
  */
 public class NetworkConfig implements SupportCallback {
@@ -714,15 +713,15 @@ NetworkConfig.getInstance().setService(new DefaultSingleService() {
 微服务接口架构请求示例：
 
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
-                    .method(EasyRequest.Method.POST)
+EasyRequest.getInstance().request(DefaultRequest.create()
+                    .method(Method.POST)
                     .name("user")//设置微服务名，对应的host在NetworkConfig设置server时设置
                     .path("login/")
-                    .params(new EasyRequest.RequestParam()
+                    .params(new RequestParam()
                             .put("mobile", "13000000000")
                             .put("password", "123456")
                             .build())
-                    .listener(new EasyRequest.RequestListener() {
+                    .listener(new RequestListener() {
                         @Override
                         public void onSuccess(String result) {
                            /*请求成功回调，result为接口返回的json数据*/
@@ -739,15 +738,15 @@ EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>
 单服务接口架构请求示例：
 
 ```java
-EasyRequest.getInstance().request(new EasyRequest.Request.Builder<String,String>()
-                    .method(EasyRequest.Method.POST)
+EasyRequest.getInstance().request(DefaultRequest.create()
+                    .method(Method.POST)
                     .host("https://api.test.com/")
                     .path("login/")
-                    .params(new EasyRequest.RequestParam()
+                    .params(new RequestParam()
                             .put("mobile", "13000000000")
                             .put("password", "123456")
                             .build())
-                    .listener(new EasyRequest.RequestListener() {
+                    .listener(new RequestListener() {
                         @Override
                         public void onSuccess(String result) {
                            /*请求成功回调，result为接口返回的json数据*/
@@ -802,6 +801,7 @@ public class EasyRequest {
     private EasyRequest() {
         /*默认设置请求代理为okHttp*/
         mRequestDelegate = new OkHttpDelegate();
+        mHandler = new Handler(Looper.getMainLooper());
         mILog = new ILog() {
             @Override
             public void onLogVerbose(String TAG, String log) {
@@ -838,6 +838,21 @@ public class EasyRequest {
                 }
             }
         };
+    }
+
+    public Handler getHandler() {
+        return mHandler;
+    }
+
+    /**
+     * 延时处理任务
+     */
+    private void delayTask(Handler handler, long delayMillis, Runnable runnable) {
+        if (delayMillis > 0) {
+            handler.postDelayed(runnable, delayMillis);
+        } else {
+            handler.post(runnable);
+        }
     }
 
     public static EasyRequest getInstance() {
@@ -881,13 +896,6 @@ public class EasyRequest {
         if (canPrintLog() && delegate != null) {
             logD("[setRequestDelegate]" + delegate.getClass().getName());
         }
-    }
-
-    /**
-     * 设置Handler（用于带请求时长的模拟请求）
-     */
-    public void setHandlerForMockRequest(Handler handler) {
-        mHandler = handler;
     }
 
     /**
@@ -988,7 +996,7 @@ public class EasyRequest {
         return debug && mILog != null;
     }
 
-    public void request(Request config) {
+    public <S, F> void request(BaseRequest<S, F> config) {
         if (canPrintLog() && config != null) {
             StringBuilder builder = new StringBuilder();
             builder.append("[request]")
@@ -1001,32 +1009,29 @@ public class EasyRequest {
             logD(builder.toString());
         }
         if (config != null && config.mockRequest != null && config.getListener() != null) {
-            config.getListener().requestBefore();
-            if (config.mockRequest.requestDuration() > 0 && mHandler != null) {
-                mHandler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (config.mockRequest.callbackType() == MockRequestCallbackType.SUCCESS) {
-                            config.getListener().onSuccess(config.mockRequest.result());
-                        } else if (config.mockRequest.callbackType() == MockRequestCallbackType.FAIL) {
-                            config.getListener().onFail(config.mockRequest.result());
-                        }
-                    }
-                }, config.mockRequest.requestDuration() * 1000L);
-            } else {
-                if (config.mockRequest.callbackType() == MockRequestCallbackType.SUCCESS) {
-                    config.getListener().onSuccess(config.mockRequest.result());
-                } else if (config.mockRequest.callbackType() == MockRequestCallbackType.FAIL) {
-                    config.getListener().onFail(config.mockRequest.result());
+            delayTask(EasyRequest.getInstance().getHandler(), 0, new Runnable() {
+                @Override
+                public void run() {
+                    config.getListener().requestBefore();
                 }
-            }
-            config.getListener().requestAfter();
+            });
+            delayTask(EasyRequest.getInstance().getHandler(), config.mockRequest.requestDuration() * 1000L, new Runnable() {
+                @Override
+                public void run() {
+                    if (config.mockRequest.callbackType() == MockRequestCallbackType.SUCCESS) {
+                        config.getListener().onSuccess(config.mockRequest.result());
+                    } else if (config.mockRequest.callbackType() == MockRequestCallbackType.FAIL) {
+                        config.getListener().onFail(config.mockRequest.result());
+                    }
+                    config.getListener().requestAfter();
+                }
+            });
         } else {
             mRequestDelegate.request(config);
         }
     }
 
-    public void remove(Request config) {
+    public <S, F> void remove(BaseRequest<S, F> config) {
         mRequestDelegate.remove(config);
         if (canPrintLog() && config != null) {
             StringBuilder builder = new StringBuilder();
@@ -1064,6 +1069,8 @@ public class EasyRequest {
             logD(builder.toString());
         }
     }
+
+}
 
     /**
      * 请求结果监听
@@ -1168,235 +1175,386 @@ public class EasyRequest {
         FAIL
     }
 
+    public class BaseRequest<S, F> {
     /**
-     * 请求代理
+     * 请求类型
      */
-    public static class Request {
-        /**
-         * 请求类型
-         */
-        RequestType requestType;
-        /**
-         * 请求类型
-         */
-        Method method;
-        /**
-         * 请求参数
-         */
-        Map<String, Object> params;
-        /**
-         * 请求回调（外部设置）
-         */
-        RequestListener requestListener;
-        /**
-         * 真正的请求回调
-         */
-        WholeRequestListener realRequestListener;
-        /**
-         * 转换请求结果（可对请求回调参数做包装）
-         */
-        TransformListener transformListener;
-        /**
-         * 模拟请求配置
-         */
-        MockRequest mockRequest;
-        /**
-         * 单服务host
-         */
-        String host;
-        /**
-         * 请求path
-         */
-        String path;
-        /**
-         * 微服务名（需在BaseService配置）
-         */
-        String name;
-        /**
-         * 唯一值
-         */
-        final String uuid;
-        final String TAG;
+    RequestType requestType;
+    /**
+     * 请求类型
+     */
+    Method method;
+    /**
+     * 请求参数
+     */
+    Map<String, Object> params;
+    /**
+     * 请求回调（外部设置）
+     */
+    RequestListener requestListener;
+    /**
+     * 真正的请求回调
+     */
+    WholeRequestListener realRequestListener;
+    /**
+     * 转换请求结果（可对请求回调参数做包装）
+     */
+    TransformListener transformListener;
+    /**
+     * 模拟请求配置
+     */
+    MockRequest mockRequest;
+    /**
+     * 单服务host
+     */
+    String host;
+    /**
+     * 请求path
+     */
+    String path;
+    /**
+     * 微服务名（需在BaseService配置）
+     */
+    String name;
+    /**
+     * 唯一值
+     */
+    final String uuid;
+    final String TAG;
+    final BaseConverterFactory<S, F> converterFactory;
+    final ConverterListener<S, F> converterListener;
 
-        private Request(Builder builder) {
-            uuid = UUID.randomUUID().toString();
-            requestType = builder.requestType;
-            method = builder.method;
-            params = builder.params;
-            requestListener = builder.requestListener;
-            transformListener = builder.transformListener;
-            mockRequest = builder.mockRequest;
-            host = builder.host;
-            path = builder.path;
-            name = builder.name;
-            TAG = builder.TAG;
-            if (requestListener != null) {
-                realRequestListener = new WholeRequestListener() {
-                    @Override
-                    public void requestBefore() {
+    private BaseRequest(Builder<S, F> builder) {
+        uuid = UUID.randomUUID().toString();
+        requestType = builder.requestType;
+        method = builder.method;
+        params = builder.params;
+        requestListener = builder.requestListener;
+        transformListener = builder.transformListener;
+        mockRequest = builder.mockRequest;
+        host = builder.host;
+        path = builder.path;
+        name = builder.name;
+        TAG = builder.TAG;
+        converterFactory = builder.converterFactory;
+        converterListener = builder.converterListener;
+        if (requestListener != null || converterListener != null) {
+            realRequestListener = new WholeRequestListener() {
+                @Override
+                public void requestBefore() {
+                    if (EasyRequest.getInstance().getHandler() != null) {
+                        EasyRequest.getInstance().getHandler().post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (requestListener instanceof WholeRequestListener) {
+                                    ((WholeRequestListener) requestListener).requestBefore();
+                                }
+                                if (converterListener instanceof WholeConverterListener) {
+                                    ((WholeConverterListener<S, F>) converterListener).requestBefore();
+                                }
+                            }
+                        });
+                    } else {
                         if (requestListener instanceof WholeRequestListener) {
                             ((WholeRequestListener) requestListener).requestBefore();
                         }
+                        if (converterListener instanceof WholeConverterListener) {
+                            ((WholeConverterListener<S, F>) converterListener).requestBefore();
+                        }
                     }
+                }
 
-                    @Override
-                    public void requestAfter() {
+                @Override
+                public void requestAfter() {
+                    if (EasyRequest.getInstance().getHandler() != null) {
+                        EasyRequest.getInstance().getHandler().post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (requestListener instanceof WholeRequestListener) {
+                                    ((WholeRequestListener) requestListener).requestAfter();
+                                }
+                                if (converterListener instanceof WholeConverterListener) {
+                                    ((WholeConverterListener<S, F>) converterListener).requestAfter();
+                                }
+                            }
+                        });
+                    } else {
                         if (requestListener instanceof WholeRequestListener) {
                             ((WholeRequestListener) requestListener).requestAfter();
                         }
+                        if (converterListener instanceof WholeConverterListener) {
+                            ((WholeConverterListener<S, F>) converterListener).requestAfter();
+                        }
                     }
+                }
 
-                    @Override
-                    public void onSuccess(String result) {
+                @Override
+                public void onSuccess(String result) {
+                    if (EasyRequest.getInstance().getHandler() != null) {
+                        EasyRequest.getInstance().getHandler().post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (transformListener != null) {
+                                    String realResult = transformListener.onTransformResult(result);
+                                    if (transformListener.callbackType() == TransformCallbackType.DEFAULT
+                                            || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
+                                        if (requestListener != null) {
+                                            requestListener.onSuccess(realResult);
+                                        }
+                                        if (converterListener != null && converterFactory != null) {
+                                            converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                        }
+                                        EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                    } else if (transformListener.callbackType() == TransformCallbackType.FAIL) {
+                                        if (requestListener != null) {
+                                            requestListener.onFail(realResult);
+                                        }
+                                        if (converterListener != null && converterFactory != null) {
+                                            converterListener.onFail(converterFactory.converterFail(realResult));
+                                        }
+                                        EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                    }
+                                } else {
+                                    if (requestListener != null) {
+                                        requestListener.onSuccess(result);
+                                    }
+                                    if (converterListener != null && converterFactory != null) {
+                                        converterListener.onSuccess(converterFactory.converterSuccess(result));
+                                    }
+                                    EasyRequest.getInstance().logI("[onSuccess]result：" + result);
+                                }
+                            }
+                        });
+                    } else {
                         if (transformListener != null) {
                             String realResult = transformListener.onTransformResult(result);
                             if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                     || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
-                                requestListener.onSuccess(realResult);
+                                if (requestListener != null) {
+                                    requestListener.onSuccess(realResult);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                }
                                 EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
                             } else if (transformListener.callbackType() == TransformCallbackType.FAIL) {
-                                requestListener.onFail(transformListener.onTransformResult(result));
+                                if (requestListener != null) {
+                                    requestListener.onFail(realResult);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onFail(converterFactory.converterFail(realResult));
+                                }
                                 EasyRequest.getInstance().logE("[onFail]result：" + realResult);
                             }
                         } else {
-                            requestListener.onSuccess(result);
+                            if (requestListener != null) {
+                                requestListener.onSuccess(result);
+                            }
+                            if (converterListener != null && converterFactory != null) {
+                                converterListener.onSuccess(converterFactory.converterSuccess(result));
+                            }
                             EasyRequest.getInstance().logI("[onSuccess]result：" + result);
                         }
                     }
+                }
 
-                    @Override
-                    public void onFail(String result) {
+                @Override
+                public void onFail(String result) {
+                    if (EasyRequest.getInstance().getHandler() != null) {
+                        EasyRequest.getInstance().getHandler().post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (transformListener != null) {
+                                    String realResult = transformListener.onTransformResult(result);
+                                    if (transformListener.callbackType() == TransformCallbackType.DEFAULT
+                                            || transformListener.callbackType() == TransformCallbackType.FAIL) {
+                                        if (requestListener != null) {
+                                            requestListener.onFail(realResult);
+                                        }
+                                        if (converterListener != null && converterFactory != null) {
+                                            converterListener.onFail(converterFactory.converterFail(realResult));
+                                        }
+                                        EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                    } else if (transformListener.callbackType() == TransformCallbackType.SUCCESS) {
+                                        if (requestListener != null) {
+                                            requestListener.onSuccess(realResult);
+                                        }
+                                        if (converterListener != null && converterFactory != null) {
+                                            converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                        }
+                                        EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                    }
+                                } else {
+                                    if (requestListener != null) {
+                                        requestListener.onFail(result);
+                                    }
+                                    if (converterListener != null && converterFactory != null) {
+                                        converterListener.onFail(converterFactory.converterFail(result));
+                                    }
+                                    EasyRequest.getInstance().logE("[onFail]result：" + result);
+                                }
+                            }
+                        });
+                    } else {
                         if (transformListener != null) {
                             String realResult = transformListener.onTransformResult(result);
                             if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                     || transformListener.callbackType() == TransformCallbackType.FAIL) {
-                                requestListener.onFail(realResult);
+                                if (requestListener != null) {
+                                    requestListener.onFail(realResult);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onFail(converterFactory.converterFail(realResult));
+                                }
                                 EasyRequest.getInstance().logE("[onFail]result：" + realResult);
                             } else if (transformListener.callbackType() == TransformCallbackType.SUCCESS) {
-                                requestListener.onSuccess(transformListener.onTransformResult(result));
+                                if (requestListener != null) {
+                                    requestListener.onSuccess(realResult);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                }
                                 EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
                             }
                         } else {
-                            requestListener.onFail(result);
+                            if (requestListener != null) {
+                                requestListener.onFail(result);
+                            }
+                            if (converterListener != null && converterFactory != null) {
+                                converterListener.onFail(converterFactory.converterFail(result));
+                            }
                             EasyRequest.getInstance().logE("[onFail]result：" + result);
                         }
                     }
-                };
-            }
+                }
+            };
         }
+    }
 
-        public String getUUid() {
-            return uuid;
-        }
+    public String getUUid() {
+        return uuid;
+    }
 
-        public String getTAG() {
-            return TAG;
+    public String getTAG() {
+        return TAG;
+    }
+
+    /**
+     * @deprecated 推荐使用 {@link #getMethod()}
+     */
+    public RequestType getType() {
+        return requestType;
+    }
+
+    public Method getMethod() {
+        return method;
+    }
+
+    public Map<String, Object> getParams() {
+        return params;
+    }
+
+    public WholeRequestListener getListener() {
+        return realRequestListener;
+    }
+
+    public String getUrl() {
+        StringBuilder builder = new StringBuilder();
+        if (!TextUtils.isEmpty(name)) {
+            builder.append(NetworkConfig.getInstance().getHost(name));
+        } else {
+            builder.append(!TextUtils.isEmpty(host) ? host : NetworkConfig.getInstance().getHost());
         }
+        if (!TextUtils.isEmpty(path)) {
+            builder.append(path);
+        }
+        return builder.toString();
+    }
+
+    public static class Builder<S, F> {
+        RequestType requestType;
+        Method method;
+        Map<String, Object> params;
+        RequestListener requestListener;
+        TransformListener transformListener;
+        MockRequest mockRequest;
+        String host;
+        String path;
+        String name;
+        String TAG;
+        BaseConverterFactory<S, F> converterFactory;
+        ConverterListener<S, F> converterListener;
 
         /**
-         * @deprecated 推荐使用 {@link EasyRequest.Request#getMethod()}
+         * @deprecated 推荐使用 {@link Builder#method(Method)}
          */
-        public RequestType getType() {
-            return requestType;
+        public Builder<S, F> type(RequestType requestType) {
+            this.requestType = requestType;
+            return this;
         }
 
-        public Method getMethod() {
-            return method;
+        public Builder<S, F> method(Method method) {
+            this.method = method;
+            return this;
         }
 
-        public Map<String, Object> getParams() {
-            return params;
+        public Builder<S, F> params(Map<String, Object> params) {
+            this.params = params;
+            return this;
         }
 
-        public WholeRequestListener getListener() {
-            return realRequestListener;
+        public Builder<S, F> listener(RequestListener listener) {
+            this.requestListener = listener;
+            return this;
         }
 
-        public String getUrl() {
-            StringBuilder builder = new StringBuilder();
-            if (!TextUtils.isEmpty(name)) {
-                builder.append(NetworkConfig.getInstance().getHost(name));
-            } else {
-                builder.append(host);
-            }
-            if (!TextUtils.isEmpty(path)) {
-                builder.append(path);
-            }
-            return builder.toString();
+        public Builder<S, F> listener(ConverterListener<S, F> converterListener) {
+            this.converterListener = converterListener;
+            return this;
         }
 
-        public static class Builder {
-            RequestType requestType;
-            Method method;
-            Map<String, Object> params;
-            RequestListener requestListener;
-            TransformListener transformListener;
-            MockRequest mockRequest;
-            String host;
-            String path;
-            String name;
-            String TAG;
-
-            /**
-             * @deprecated 推荐使用 {@link EasyRequest.Request.Builder#method(EasyRequest.Method)}
-             */
-            public Builder type(RequestType requestType) {
-                this.requestType = requestType;
-                return this;
-            }
-
-            public Builder method(Method method) {
-                this.method = method;
-                return this;
-            }
-
-            public Builder params(Map<String, Object> params) {
-                this.params = params;
-                return this;
-            }
-
-            public Builder listener(RequestListener listener) {
-                this.requestListener = listener;
-                return this;
-            }
-
-            public Builder transformResult(TransformListener listener) {
-                this.transformListener = listener;
-                return this;
-            }
-
-            public Builder mockRequest(MockRequest mockRequest) {
-                this.mockRequest = mockRequest;
-                return this;
-            }
-
-            public Builder host(String host) {
-                this.host = host;
-                return this;
-            }
-
-            public Builder path(String path) {
-                this.path = path;
-                return this;
-            }
-
-            public Builder name(String name) {
-                this.name = name;
-                return this;
-            }
-
-            public Builder tag(String TAG) {
-                this.TAG = TAG;
-                return this;
-            }
-
-            public Request build() {
-                return new Request(this);
-            }
+        public Builder<S, F> transformResult(TransformListener listener) {
+            this.transformListener = listener;
+            return this;
         }
 
+        public Builder<S, F> mockRequest(MockRequest mockRequest) {
+            this.mockRequest = mockRequest;
+            return this;
+        }
 
+        public Builder<S, F> host(String host) {
+            this.host = host;
+            return this;
+        }
+
+        public Builder<S, F> path(String path) {
+            this.path = path;
+            return this;
+        }
+
+        public Builder<S, F> name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder<S, F> tag(String TAG) {
+            this.TAG = TAG;
+            return this;
+        }
+
+        public Builder<S, F> addConverterFactory(BaseConverterFactory<S, F> converterFactory) {
+            this.converterFactory = converterFactory;
+            return this;
+        }
+
+        public BaseRequest<S, F> build() {
+            return new BaseRequest<>(this);
+        }
     }
+
+
+}
 
     public static class RequestParam {
         private Map<String, Object> param;
@@ -1418,7 +1576,7 @@ public class EasyRequest {
     /**
      * 请求方法
      *
-     * @deprecated 推荐使用 {@link EasyRequest.Method}
+     * @deprecated 推荐使用 {@link Method}
      */
     public enum RequestType {
         GET,
@@ -1477,8 +1635,6 @@ public class EasyRequest {
         void onLogError(String TAG, String log);
     }
 
-}
-
 ```
 
 BaseService.java
@@ -1489,7 +1645,7 @@ import android.util.ArrayMap;
 
 /**
  * 描述: 接口请求服务基类
- * 作者: lpx
+ * 联系: 1966353889@qq.com
  * 日期: 2021/12/3
  */
 abstract class BaseService implements TimeoutListener {

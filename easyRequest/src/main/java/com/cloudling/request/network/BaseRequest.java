@@ -1,7 +1,5 @@
 package com.cloudling.request.network;
 
-import android.os.Handler;
-import android.os.Looper;
 import android.text.TextUtils;
 
 import com.cloudling.request.converter.BaseConverterFactory;
@@ -311,7 +309,7 @@ public class BaseRequest<S, F> {
         if (!TextUtils.isEmpty(name)) {
             builder.append(NetworkConfig.getInstance().getHost(name));
         } else {
-            builder.append(host);
+            builder.append(!TextUtils.isEmpty(host) ? host : NetworkConfig.getInstance().getHost());
         }
         if (!TextUtils.isEmpty(path)) {
             builder.append(path);
