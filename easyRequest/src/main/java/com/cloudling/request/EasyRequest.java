@@ -1,6 +1,7 @@
 package com.cloudling.request;
 
 import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -38,6 +39,7 @@ public class EasyRequest {
     private EasyRequest() {
         /*默认设置请求代理为okHttp*/
         mRequestDelegate = new OkHttpDelegate();
+        mHandler = new Handler(Looper.getMainLooper());
         mILog = new ILog() {
             @Override
             public void onLogVerbose(String TAG, String log) {
@@ -74,6 +76,21 @@ public class EasyRequest {
                 }
             }
         };
+    }
+
+    private Handler getHandler() {
+        return mHandler;
+    }
+
+    /**
+     * 延时处理任务
+     */
+    private void delayTask(Handler handler, long delayMillis, Runnable runnable) {
+        if (delayMillis > 0) {
+            handler.postDelayed(runnable, delayMillis);
+        } else {
+            handler.post(runnable);
+        }
     }
 
     public static EasyRequest getInstance() {
@@ -117,13 +134,6 @@ public class EasyRequest {
         if (canPrintLog() && delegate != null) {
             logD("[setRequestDelegate]" + delegate.getClass().getName());
         }
-    }
-
-    /**
-     * 设置Handler（用于带请求时长的模拟请求）
-     */
-    public void setHandlerForMockRequest(Handler handler) {
-        mHandler = handler;
     }
 
     /**
@@ -236,57 +246,25 @@ public class EasyRequest {
                     .append(config.params != null ? new JSONObject(config.params).toString() : null);
             logD(builder.toString());
         }
-        if (config != null && config.mockRequest != null && (config.getListener() != null || config.converterListener != null)) {
-            if (config.getListener() != null) {
-                config.getListener().requestBefore();
-            }
-            if (config.converterListener instanceof WholeConverterListener) {
-                ((WholeConverterListener<S, F>) config.converterListener).requestBefore();
-            }
-            if (config.mockRequest.requestDuration() > 0 && mHandler != null) {
-                mHandler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (config.mockRequest.callbackType() == MockRequestCallbackType.SUCCESS) {
-                            if (config.getListener() != null) {
-                                config.getListener().onSuccess(config.mockRequest.result());
-                            }
-                            if (config.converterListener != null && config.converterFactory != null) {
-                                config.converterListener.onSuccess(config.converterFactory.converterSuccess(config.mockRequest.result()));
-                            }
-                        } else if (config.mockRequest.callbackType() == MockRequestCallbackType.FAIL) {
-                            if (config.getListener() != null) {
-                                config.getListener().onFail(config.mockRequest.result());
-                            }
-                            if (config.converterListener != null && config.converterFactory != null) {
-                                config.converterListener.onFail(config.converterFactory.converterFail(config.mockRequest.result()));
-                            }
-                        }
-                    }
-                }, config.mockRequest.requestDuration() * 1000L);
-            } else {
-                if (config.mockRequest.callbackType() == MockRequestCallbackType.SUCCESS) {
-                    if (config.getListener() != null) {
+        if (config != null && config.mockRequest != null && config.getListener() != null) {
+            Handler dealWithHandler = Looper.myLooper() == Looper.getMainLooper() || config.getSchedulers() == Schedulers.MAIN ? mHandler : new Handler();
+            delayTask(dealWithHandler, 0, new Runnable() {
+                @Override
+                public void run() {
+                    config.getListener().requestBefore();
+                }
+            });
+            delayTask(dealWithHandler, config.mockRequest.requestDuration() * 1000L, new Runnable() {
+                @Override
+                public void run() {
+                    if (config.mockRequest.callbackType() == MockRequestCallbackType.SUCCESS) {
                         config.getListener().onSuccess(config.mockRequest.result());
-                    }
-                    if (config.converterListener != null && config.converterFactory != null) {
-                        config.converterListener.onSuccess(config.converterFactory.converterSuccess(config.mockRequest.result()));
-                    }
-                } else if (config.mockRequest.callbackType() == MockRequestCallbackType.FAIL) {
-                    if (config.getListener() != null) {
+                    } else if (config.mockRequest.callbackType() == MockRequestCallbackType.FAIL) {
                         config.getListener().onFail(config.mockRequest.result());
                     }
-                    if (config.converterListener != null && config.converterFactory != null) {
-                        config.converterListener.onFail(config.converterFactory.converterFail(config.mockRequest.result()));
-                    }
+                    config.getListener().requestAfter();
                 }
-            }
-            if (config.getListener() != null) {
-                config.getListener().requestAfter();
-            }
-            if (config.converterListener instanceof WholeConverterListener) {
-                ((WholeConverterListener<S, F>) config.converterListener).requestAfter();
-            }
+            });
         } else {
             mRequestDelegate.request(config);
         }
@@ -518,8 +496,9 @@ public class EasyRequest {
          */
         final String uuid;
         final String TAG;
-        BaseConverterFactory<S, F> converterFactory;
-        ConverterListener<S, F> converterListener;
+        final BaseConverterFactory<S, F> converterFactory;
+        final ConverterListener<S, F> converterListener;
+        final Schedulers schedulers;
 
         private Request(Builder<S, F> builder) {
             uuid = UUID.randomUUID().toString();
@@ -529,97 +508,205 @@ public class EasyRequest {
             requestListener = builder.requestListener;
             transformListener = builder.transformListener;
             mockRequest = builder.mockRequest;
-            converterFactory = builder.converterFactory;
-            converterListener = builder.converterListener;
             host = builder.host;
             path = builder.path;
             name = builder.name;
             TAG = builder.TAG;
+            converterFactory = builder.converterFactory;
+            converterListener = builder.converterListener;
+            if (builder.schedulers == null) {
+                schedulers = Looper.myLooper() == Looper.getMainLooper() ? Schedulers.MAIN : Schedulers.DEFAULT;
+            } else {
+                schedulers = builder.schedulers;
+            }
             if (requestListener != null || converterListener != null) {
+                Handler dealWithHandler = Looper.myLooper() == Looper.getMainLooper() || getSchedulers() == Schedulers.MAIN ? EasyRequest.getInstance().getHandler() : null;
                 realRequestListener = new WholeRequestListener() {
                     @Override
                     public void requestBefore() {
-                        if (requestListener instanceof WholeRequestListener) {
-                            ((WholeRequestListener) requestListener).requestBefore();
-                        }
-                        if (converterListener instanceof WholeConverterListener) {
-                            ((WholeConverterListener<S, F>) converterListener).requestBefore();
+                        if (dealWithHandler != null) {
+                            dealWithHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (requestListener instanceof WholeRequestListener) {
+                                        ((WholeRequestListener) requestListener).requestBefore();
+                                    }
+                                    if (converterListener instanceof WholeConverterListener) {
+                                        ((WholeConverterListener<S, F>) converterListener).requestBefore();
+                                    }
+                                }
+                            });
+                        } else {
+                            if (requestListener instanceof WholeRequestListener) {
+                                ((WholeRequestListener) requestListener).requestBefore();
+                            }
+                            if (converterListener instanceof WholeConverterListener) {
+                                ((WholeConverterListener<S, F>) converterListener).requestBefore();
+                            }
                         }
                     }
 
                     @Override
                     public void requestAfter() {
-                        if (requestListener instanceof WholeRequestListener) {
-                            ((WholeRequestListener) requestListener).requestAfter();
-                        }
-                        if (converterListener instanceof WholeConverterListener) {
-                            ((WholeConverterListener<S, F>) converterListener).requestAfter();
+                        if (dealWithHandler != null) {
+                            dealWithHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (requestListener instanceof WholeRequestListener) {
+                                        ((WholeRequestListener) requestListener).requestAfter();
+                                    }
+                                    if (converterListener instanceof WholeConverterListener) {
+                                        ((WholeConverterListener<S, F>) converterListener).requestAfter();
+                                    }
+                                }
+                            });
+                        } else {
+                            if (requestListener instanceof WholeRequestListener) {
+                                ((WholeRequestListener) requestListener).requestAfter();
+                            }
+                            if (converterListener instanceof WholeConverterListener) {
+                                ((WholeConverterListener<S, F>) converterListener).requestAfter();
+                            }
                         }
                     }
 
                     @Override
                     public void onSuccess(String result) {
-                        if (transformListener != null) {
-                            String realResult = transformListener.onTransformResult(result);
-                            if (transformListener.callbackType() == TransformCallbackType.DEFAULT
-                                    || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
-                                if (requestListener != null) {
-                                    requestListener.onSuccess(realResult);
+                        if (dealWithHandler != null) {
+                            dealWithHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (transformListener != null) {
+                                        String realResult = transformListener.onTransformResult(result);
+                                        if (transformListener.callbackType() == TransformCallbackType.DEFAULT
+                                                || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
+                                            if (requestListener != null) {
+                                                requestListener.onSuccess(realResult);
+                                            }
+                                            if (converterListener != null && converterFactory != null) {
+                                                converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                            }
+                                            EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                        } else if (transformListener.callbackType() == TransformCallbackType.FAIL) {
+                                            if (requestListener != null) {
+                                                requestListener.onFail(realResult);
+                                            }
+                                            if (converterListener != null && converterFactory != null) {
+                                                converterListener.onFail(converterFactory.converterFail(realResult));
+                                            }
+                                            EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                        }
+                                    } else {
+                                        if (requestListener != null) {
+                                            requestListener.onSuccess(result);
+                                        }
+                                        if (converterListener != null && converterFactory != null) {
+                                            converterListener.onSuccess(converterFactory.converterSuccess(result));
+                                        }
+                                        EasyRequest.getInstance().logI("[onSuccess]result：" + result);
+                                    }
                                 }
-                                if (converterListener != null && converterFactory != null) {
-                                    converterListener.onSuccess(converterFactory.converterSuccess(realResult));
-                                }
-                                EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
-                            } else if (transformListener.callbackType() == TransformCallbackType.FAIL) {
-                                if (requestListener != null) {
-                                    requestListener.onFail(realResult);
-                                }
-                                if (converterListener != null && converterFactory != null) {
-                                    converterListener.onFail(converterFactory.converterFail(realResult));
-                                }
-                                EasyRequest.getInstance().logE("[onFail]result：" + realResult);
-                            }
+                            });
                         } else {
-                            if (requestListener != null) {
-                                requestListener.onSuccess(result);
+                            if (transformListener != null) {
+                                String realResult = transformListener.onTransformResult(result);
+                                if (transformListener.callbackType() == TransformCallbackType.DEFAULT
+                                        || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
+                                    if (requestListener != null) {
+                                        requestListener.onSuccess(realResult);
+                                    }
+                                    if (converterListener != null && converterFactory != null) {
+                                        converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                    }
+                                    EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                } else if (transformListener.callbackType() == TransformCallbackType.FAIL) {
+                                    if (requestListener != null) {
+                                        requestListener.onFail(realResult);
+                                    }
+                                    if (converterListener != null && converterFactory != null) {
+                                        converterListener.onFail(converterFactory.converterFail(realResult));
+                                    }
+                                    EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                }
+                            } else {
+                                if (requestListener != null) {
+                                    requestListener.onSuccess(result);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onSuccess(converterFactory.converterSuccess(result));
+                                }
+                                EasyRequest.getInstance().logI("[onSuccess]result：" + result);
                             }
-                            if (converterListener != null && converterFactory != null) {
-                                converterListener.onSuccess(converterFactory.converterSuccess(result));
-                            }
-                            EasyRequest.getInstance().logI("[onSuccess]result：" + result);
                         }
                     }
 
                     @Override
                     public void onFail(String result) {
-                        if (transformListener != null) {
-                            String realResult = transformListener.onTransformResult(result);
-                            if (transformListener.callbackType() == TransformCallbackType.DEFAULT
-                                    || transformListener.callbackType() == TransformCallbackType.FAIL) {
-                                if (requestListener != null) {
-                                    requestListener.onFail(realResult);
+                        if (dealWithHandler != null) {
+                            dealWithHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (transformListener != null) {
+                                        String realResult = transformListener.onTransformResult(result);
+                                        if (transformListener.callbackType() == TransformCallbackType.DEFAULT
+                                                || transformListener.callbackType() == TransformCallbackType.FAIL) {
+                                            if (requestListener != null) {
+                                                requestListener.onFail(realResult);
+                                            }
+                                            if (converterListener != null && converterFactory != null) {
+                                                converterListener.onFail(converterFactory.converterFail(realResult));
+                                            }
+                                            EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                        } else if (transformListener.callbackType() == TransformCallbackType.SUCCESS) {
+                                            if (requestListener != null) {
+                                                requestListener.onSuccess(realResult);
+                                            }
+                                            if (converterListener != null && converterFactory != null) {
+                                                converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                            }
+                                            EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                        }
+                                    } else {
+                                        if (requestListener != null) {
+                                            requestListener.onFail(result);
+                                        }
+                                        if (converterListener != null && converterFactory != null) {
+                                            converterListener.onFail(converterFactory.converterFail(result));
+                                        }
+                                        EasyRequest.getInstance().logE("[onFail]result：" + result);
+                                    }
                                 }
-                                if (converterListener != null && converterFactory != null) {
-                                    converterListener.onFail(converterFactory.converterFail(realResult));
-                                }
-                                EasyRequest.getInstance().logE("[onFail]result：" + realResult);
-                            } else if (transformListener.callbackType() == TransformCallbackType.SUCCESS) {
-                                if (requestListener != null) {
-                                    requestListener.onSuccess(realResult);
-                                }
-                                if (converterListener != null && converterFactory != null) {
-                                    converterListener.onSuccess(converterFactory.converterSuccess(realResult));
-                                }
-                                EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
-                            }
+                            });
                         } else {
-                            if (requestListener != null) {
-                                requestListener.onFail(result);
+                            if (transformListener != null) {
+                                String realResult = transformListener.onTransformResult(result);
+                                if (transformListener.callbackType() == TransformCallbackType.DEFAULT
+                                        || transformListener.callbackType() == TransformCallbackType.FAIL) {
+                                    if (requestListener != null) {
+                                        requestListener.onFail(realResult);
+                                    }
+                                    if (converterListener != null && converterFactory != null) {
+                                        converterListener.onFail(converterFactory.converterFail(realResult));
+                                    }
+                                    EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                } else if (transformListener.callbackType() == TransformCallbackType.SUCCESS) {
+                                    if (requestListener != null) {
+                                        requestListener.onSuccess(realResult);
+                                    }
+                                    if (converterListener != null && converterFactory != null) {
+                                        converterListener.onSuccess(converterFactory.converterSuccess(realResult));
+                                    }
+                                    EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                }
+                            } else {
+                                if (requestListener != null) {
+                                    requestListener.onFail(result);
+                                }
+                                if (converterListener != null && converterFactory != null) {
+                                    converterListener.onFail(converterFactory.converterFail(result));
+                                }
+                                EasyRequest.getInstance().logE("[onFail]result：" + result);
                             }
-                            if (converterListener != null && converterFactory != null) {
-                                converterListener.onFail(converterFactory.converterFail(result));
-                            }
-                            EasyRequest.getInstance().logE("[onFail]result：" + result);
                         }
                     }
                 };
@@ -666,6 +753,10 @@ public class EasyRequest {
             return builder.toString();
         }
 
+        public Schedulers getSchedulers() {
+            return schedulers;
+        }
+
         public static class Builder<S, F> {
             RequestType requestType;
             Method method;
@@ -679,6 +770,7 @@ public class EasyRequest {
             String TAG;
             BaseConverterFactory<S, F> converterFactory;
             ConverterListener<S, F> converterListener;
+            Schedulers schedulers;
 
             /**
              * @deprecated 推荐使用 {@link Builder#method(Method)}
@@ -743,6 +835,11 @@ public class EasyRequest {
                 return this;
             }
 
+            public Builder<S, F> callbackOn(Schedulers schedulers) {
+                this.schedulers = schedulers;
+                return this;
+            }
+
             public Request<S, F> build() {
                 return new Request<>(this);
             }
@@ -788,6 +885,20 @@ public class EasyRequest {
         POST,
         PUT,
         DELETE
+    }
+
+    /**
+     * 回调线程
+     */
+    public enum Schedulers {
+        /**
+         * 默认（跟随发起请求的线程）
+         */
+        DEFAULT,
+        /**
+         * 主线程
+         */
+        MAIN
     }
 
     /**
