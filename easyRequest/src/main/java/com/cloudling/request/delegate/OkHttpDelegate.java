@@ -3,8 +3,11 @@ package com.cloudling.request.delegate;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 
-import com.cloudling.request.EasyRequest;
-import com.cloudling.request.NetworkConfig;
+import com.cloudling.request.network.BaseRequest;
+import com.cloudling.request.network.EasyRequest;
+import com.cloudling.request.network.NetworkConfig;
+import com.cloudling.request.type.Method;
+import com.cloudling.request.type.RequestType;
 
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
@@ -29,7 +32,7 @@ import okhttp3.Response;
  * 联系：1966353889@qq.com
  * 日期: 2021/12/7
  */
-public class OkHttpDelegate implements EasyRequest.RequestDelegate {
+public class OkHttpDelegate implements RequestDelegate {
     /**
      * okHttp请求实例
      */
@@ -37,7 +40,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     /**
      * 缓存请求
      */
-    private ConcurrentHashMap<String, EasyRequest.Request<?, ?>> mRequestMap;
+    private ConcurrentHashMap<String, BaseRequest<?, ?>> mRequestMap;
 
     public OkHttpDelegate() {
         mRequestMap = new ConcurrentHashMap<>();
@@ -70,7 +73,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     }
 
     @Override
-    public <S, F> void request(EasyRequest.Request<S, F> config) {
+    public <S, F> void request(BaseRequest<S, F> config) {
         if (config == null) {
             return;
         }
@@ -80,7 +83,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             config.getListener().requestBefore();
         }
         Request.Builder builder = new Request.Builder();
-        if (config.getMethod() == EasyRequest.Method.GET || config.getType() == EasyRequest.RequestType.GET) {
+        if (config.getMethod() == Method.GET || config.getType() == RequestType.GET) {
             if (config.getParams() != null) {
                 HttpUrl.Builder urlBuilder = HttpUrl.parse(config.getUrl()).newBuilder();
                 for (Map.Entry<String, Object> entry : config.getParams().entrySet()) {
@@ -90,12 +93,12 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             } else {
                 builder.url(config.getUrl());
             }
-        } else if (config.getType() == EasyRequest.RequestType.POST
-                || config.getType() == EasyRequest.RequestType.PUT
-                || config.getType() == EasyRequest.RequestType.DELETE
-                || config.getMethod() == EasyRequest.Method.POST
-                || config.getMethod() == EasyRequest.Method.PUT
-                || config.getMethod() == EasyRequest.Method.DELETE) {
+        } else if (config.getType() == RequestType.POST
+                || config.getType() == RequestType.PUT
+                || config.getType() == RequestType.DELETE
+                || config.getMethod() == Method.POST
+                || config.getMethod() == Method.PUT
+                || config.getMethod() == Method.DELETE) {
             builder.url(config.getUrl());
             RequestBody body;
             if (config.getParams() != null) {
@@ -105,11 +108,11 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
             } else {
                 body = RequestBody.create(null, "");
             }
-            if (config.getMethod() == EasyRequest.Method.POST || config.getType() == EasyRequest.RequestType.POST) {
+            if (config.getMethod() == Method.POST || config.getType() == RequestType.POST) {
                 builder.post(body);
-            } else if (config.getMethod() == EasyRequest.Method.PUT || config.getType() == EasyRequest.RequestType.PUT) {
+            } else if (config.getMethod() == Method.PUT || config.getType() == RequestType.PUT) {
                 builder.put(body);
-            } else if (config.getMethod() == EasyRequest.Method.DELETE || config.getType() == EasyRequest.RequestType.DELETE) {
+            } else if (config.getMethod() == Method.DELETE || config.getType() == RequestType.DELETE) {
                 builder.delete(body);
             }
         } else {
@@ -160,7 +163,7 @@ public class OkHttpDelegate implements EasyRequest.RequestDelegate {
     }
 
     @Override
-    public <S, F> void remove(EasyRequest.Request<S, F> config) {
+    public <S, F> void remove(BaseRequest<S, F> config) {
         if (config != null) {
             mRequestMap.remove(config.getUUid());
         }

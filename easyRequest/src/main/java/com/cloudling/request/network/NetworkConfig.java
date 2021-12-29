@@ -1,4 +1,4 @@
-package com.cloudling.request;
+package com.cloudling.request.network;
 
 import android.os.Bundle;
 import android.text.TextUtils;

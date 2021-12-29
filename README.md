@@ -12,8 +12,8 @@ Add it in your root build.gradle at the end of repositories:
 Step 2. Add the dependency
 ```java
     dependencies {
-	        implementation 'com.github.linpeixu:EasyRequest:1.1.13'
-            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.13'
+	        implementation 'com.github.linpeixu:EasyRequest:1.1.15'
+            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.15'
 	}
 ```
 
