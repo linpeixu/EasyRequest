@@ -10,6 +10,7 @@ import com.cloudling.request.listener.TransformListener;
 import com.cloudling.request.listener.WholeConverterListener;
 import com.cloudling.request.listener.WholeRequestListener;
 import com.cloudling.request.type.Method;
+import com.cloudling.request.type.OriginalCallback;
 import com.cloudling.request.type.RequestType;
 import com.cloudling.request.type.TransformCallbackType;
 
@@ -141,7 +142,7 @@ public class BaseRequest<S, F> {
                             @Override
                             public void run() {
                                 if (transformListener != null) {
-                                    String realResult = transformListener.onTransformResult(result);
+                                    String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.SUCCESS, result) : transformListener.onTransformResult(result);
                                     if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                             || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
                                         if (requestListener != null) {
@@ -173,7 +174,7 @@ public class BaseRequest<S, F> {
                         });
                     } else {
                         if (transformListener != null) {
-                            String realResult = transformListener.onTransformResult(result);
+                            String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.SUCCESS, result) : transformListener.onTransformResult(result);
                             if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                     || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
                                 if (requestListener != null) {
@@ -211,7 +212,7 @@ public class BaseRequest<S, F> {
                             @Override
                             public void run() {
                                 if (transformListener != null) {
-                                    String realResult = transformListener.onTransformResult(result);
+                                    String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.FAILURE, result) : transformListener.onTransformResult(result);
                                     if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                             || transformListener.callbackType() == TransformCallbackType.FAIL) {
                                         if (requestListener != null) {
@@ -243,7 +244,7 @@ public class BaseRequest<S, F> {
                         });
                     } else {
                         if (transformListener != null) {
-                            String realResult = transformListener.onTransformResult(result);
+                            String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.FAILURE, result) : transformListener.onTransformResult(result);
                             if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                     || transformListener.callbackType() == TransformCallbackType.FAIL) {
                                 if (requestListener != null) {

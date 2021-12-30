@@ -2,6 +2,7 @@ package com.cloudling.request.network;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.cloudling.request.BuildConfig;
@@ -10,6 +11,7 @@ import com.cloudling.request.delegate.RequestDelegate;
 import com.cloudling.request.listener.ILog;
 import com.cloudling.request.type.MockRequestCallbackType;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -232,14 +234,39 @@ public class EasyRequest {
         return debug && mILog != null;
     }
 
+    /**
+     * 判断是否为json
+     */
+    public boolean isJson(String result) {
+        if (TextUtils.isEmpty(result)) {
+            return false;
+        }
+        boolean isJsonObject = true;
+        boolean isJsonArray = true;
+        try {
+            JSONObject jsonObject = new JSONObject(result);
+        } catch (Exception e) {
+            isJsonObject = false;
+        }
+        try {
+            JSONArray jsonArray = new JSONArray(result);
+        } catch (Exception e) {
+            isJsonArray = false;
+        }
+        if (!isJsonObject && !isJsonArray) {
+            return false;
+        }
+        return true;
+    }
+
     public <S, F> void request(BaseRequest<S, F> config) {
         if (canPrintLog() && config != null) {
             StringBuilder builder = new StringBuilder();
             builder.append("[request]")
                     .append("url：")
                     .append(config.getUrl())
-                    .append("，type：")
-                    .append(config.requestType.name())
+                    .append("，method：")
+                    .append(config.getMethod() != null ? config.getMethod().name() : (config.getType() != null ? config.getType().name() : null))
                     .append("，params：")
                     .append(config.params != null ? new JSONObject(config.params).toString() : null);
             logD(builder.toString());
@@ -274,8 +301,8 @@ public class EasyRequest {
             builder.append("[remove]")
                     .append("url：")
                     .append(config.getUrl())
-                    .append("，type：")
-                    .append(config.requestType.name())
+                    .append("，method：")
+                    .append(config.getMethod() != null ? config.getMethod().name() : (config.getType() != null ? config.getType().name() : null))
                     .append("，TAG：")
                     .append(config.getTAG())
                     .append("，uuid：")

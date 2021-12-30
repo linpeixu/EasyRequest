@@ -12,8 +12,8 @@ Add it in your root build.gradle at the end of repositories:
 Step 2. Add the dependency
 ```java
     dependencies {
-	        implementation 'com.github.linpeixu:EasyRequest:1.1.16'
-            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.16'
+	        implementation 'com.github.linpeixu:EasyRequest:1.1.17'
+            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.1.17'
 	}
 ```
 
@@ -33,8 +33,8 @@ Step 2. Add the dependency
 Step 1.
 ```java
     dependencies {
-	        implementation 'com.gitlab.linpeixu:GsonConverterFactory:1.0.2 '
-            //或者implementation 'com.github.linpeixu:GsonConverterFactory:1.0.2'
+	        implementation 'com.gitlab.linpeixu:GsonConverterFactory:1.0.4 '
+            //或者implementation 'com.github.linpeixu:GsonConverterFactory:1.0.4'
 	}
 ```
 Step 2.
@@ -112,7 +112,7 @@ EasyRequest.getInstance().request(new BaseRequest.Builder<String,String>()
 ```java
 EasyRequest.getInstance().request(DefaultRequest.create()
                     .method(Method.POST)
-                    .host("https://api.test.com/")
+                    .host("https://api.test.com/")//这里需要说明的是，不设置host时框架会去读取NetworkConfig设置的service的host
                     .path("login/")
                     .params(new RequestParam()
                             .put("mobile", "13000000000")
@@ -185,7 +185,94 @@ EasyRequest.getInstance().request(DefaultRequest.create()
                 })
                 .build());
 ```
-2、模拟网络请求
+2、请求结果转换回调方法支持带原始的回调类型（网络请求回调成功或失败）；
+
+只需设置transformResult时传OriginalTransformListener，如下
+```java
+EasyRequest.getInstance().request(DefaultRequest.create()
+                .method(Method.POST)
+                .host("https://api.test.com/")
+                .path("login/")
+                .params(new RequestParam()
+                        .put("mobile", "13000000000")
+                        .put("password", "123456")
+                        .build())
+                .transformResult(new OriginalTransformListener() {
+                    @Override
+                    public String onTransformResult(OriginalCallback type,String result) {
+                        if(type == OriginalCallback.FAILURE){
+                          /*转换网络请求返回的数据*/
+                          return "{\"status\":-1,\"message\":\"请求失败\"}";
+                        }
+                        return result;
+                    }
+
+                    @Override
+                    public TransformCallbackType callbackType() {
+                        return TransformCallbackType.DEFAULT;
+                    }
+                })
+                .listener(new RequestListener() {
+                    @Override
+                    public void onSuccess(String result) {
+                        /*请求成功回调，result为接口返回的json数据*/
+                    }
+
+                    @Override
+                    public void onFail(String result) {
+                        /*请求失败回调，result为接口返回的数据*/
+                    }
+                })
+                .build());
+```
+
+OriginalTransformListener.java
+
+```java
+package com.cloudling.request.network;
+
+import com.cloudling.request.listener.TransformListener;
+import com.cloudling.request.type.OriginalCallback;
+
+/**
+ * 描述: 请求结果转换（带原始的回调类型（网络请求回调成功或失败））
+ * 联系：1966353889@qq.com
+ * 日期: 2021/12/30
+ */
+public abstract class OriginalTransformListener implements TransformListener {
+    public abstract String onTransformResult(OriginalCallback type, String result);
+
+    @Override
+    public final String onTransformResult(String result) {
+        return null;
+    }
+}
+
+```
+
+OriginalCallback.java
+
+```java
+package com.cloudling.request.type;
+
+/**
+ * 描述: 原始的回调类型（网络请求回调成功或失败）
+ * 作者: 1966353889@qq.com
+ * 日期: 2021/12/30
+ */
+public enum OriginalCallback {
+    /**
+     * 成功
+     */
+    SUCCESS,
+    /**
+     * 失败
+     */
+    FAILURE
+}
+
+```
+3、模拟网络请求
 这里需要注意的是，配置模拟网络请求实际上不会发起网络请求，而是直接回调，且优先级大于transformResult
 ```java
 EasyRequest.getInstance().request(DefaultRequest.create()
@@ -241,11 +328,16 @@ package com.cloudling.request.delegate;
 
 import android.text.TextUtils;
 import android.util.ArrayMap;
-import com.cloudling.request.EasyRequest;
-import com.cloudling.request.NetworkConfig;
+import com.cloudling.request.network.BaseRequest;
+import com.cloudling.request.network.EasyRequest;
+import com.cloudling.request.network.NetworkConfig;
+import com.cloudling.request.type.Method;
+import com.cloudling.request.type.RequestType;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -272,7 +364,7 @@ public class OkHttpDelegate implements RequestDelegate {
     /**
      * 缓存请求
      */
-    private ConcurrentHashMap<String, BaseRequest> mRequestMap;
+    private ConcurrentHashMap<String, BaseRequest<?, ?>> mRequestMap;
 
     public OkHttpDelegate() {
         mRequestMap = new ConcurrentHashMap<>();
@@ -305,7 +397,7 @@ public class OkHttpDelegate implements RequestDelegate {
     }
 
     @Override
-    public void request(BaseRequest config) {
+    public <S, F> void request(BaseRequest<S, F> config) {
         if (config == null) {
             return;
         }
@@ -350,7 +442,8 @@ public class OkHttpDelegate implements RequestDelegate {
         } else {
             if (mRequestMap.get(config.getUUid()) != null) {
                 if (config.getListener() != null) {
-                    config.getListener().onFail("未知的请求方法-" + config.getType().name());
+                    String methodName = config.getMethod() != null ? config.getMethod().name() : (config.getType() != null ? config.getType().name() : null);
+                    config.getListener().onFail("未知的请求方法-" + methodName);
                     config.getListener().requestAfter();
                 }
                 removeByUUID(config.getUUid());
@@ -361,7 +454,16 @@ public class OkHttpDelegate implements RequestDelegate {
         mOkHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                String result = e.toString();
+                String result;
+                if (e instanceof SocketTimeoutException) {
+                    /*响应超时*/
+                    result = "SocketTimeoutException";
+                } else if (e instanceof ConnectTimeoutException) {
+                    /*请求超时*/
+                    result = "ConnectTimeoutException";
+                } else {
+                    result = e.toString();
+                }
                 if (mRequestMap.get(config.getUUid()) != null) {
                     if (config.getListener() != null) {
                         config.getListener().onFail(e.toString());
@@ -395,7 +497,7 @@ public class OkHttpDelegate implements RequestDelegate {
     }
 
     @Override
-    public void remove(BaseRequest config) {
+    public <S, F> void remove(BaseRequest<S, F> config) {
         if (config != null) {
             mRequestMap.remove(config.getUUid());
         }
@@ -765,16 +867,19 @@ EasyRequest.getInstance().request(DefaultRequest.create()
 EasyRequest.java
 
 ```java
-package com.cloudling.request;
+package com.cloudling.request.network;
 
 import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
+import com.cloudling.request.BuildConfig;
 import com.cloudling.request.delegate.OkHttpDelegate;
+import com.cloudling.request.delegate.RequestDelegate;
+import com.cloudling.request.listener.ILog;
+import com.cloudling.request.type.MockRequestCallbackType;
+import org.json.JSONArray;
 import org.json.JSONObject;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * 描述: 网络请求发起类（默认通过okhttp实现）
@@ -996,14 +1101,39 @@ public class EasyRequest {
         return debug && mILog != null;
     }
 
+    /**
+     * 判断是否为json
+     */
+    public boolean isJson(String result) {
+        if (TextUtils.isEmpty(result)) {
+            return false;
+        }
+        boolean isJsonObject = true;
+        boolean isJsonArray = true;
+        try {
+            JSONObject jsonObject = new JSONObject(result);
+        } catch (Exception e) {
+            isJsonObject = false;
+        }
+        try {
+            JSONArray jsonArray = new JSONArray(result);
+        } catch (Exception e) {
+            isJsonArray = false;
+        }
+        if (!isJsonObject && !isJsonArray) {
+            return false;
+        }
+        return true;
+    }
+
     public <S, F> void request(BaseRequest<S, F> config) {
         if (canPrintLog() && config != null) {
             StringBuilder builder = new StringBuilder();
             builder.append("[request]")
                     .append("url：")
                     .append(config.getUrl())
-                    .append("，type：")
-                    .append(config.requestType.name())
+                    .append("，method：")
+                    .append(config.getMethod() != null ? config.getMethod().name() : (config.getType() != null ? config.getType().name() : null))
                     .append("，params：")
                     .append(config.params != null ? new JSONObject(config.params).toString() : null);
             logD(builder.toString());
@@ -1038,8 +1168,8 @@ public class EasyRequest {
             builder.append("[remove]")
                     .append("url：")
                     .append(config.getUrl())
-                    .append("，type：")
-                    .append(config.requestType.name())
+                    .append("，method：")
+                    .append(config.getMethod() != null ? config.getMethod().name() : (config.getType() != null ? config.getType().name() : null))
                     .append("，TAG：")
                     .append(config.getTAG())
                     .append("，uuid：")
@@ -1072,6 +1202,10 @@ public class EasyRequest {
 
 }
 
+```
+RequestListener.java
+
+```java
     /**
      * 请求结果监听
      */
@@ -1090,7 +1224,10 @@ public class EasyRequest {
          */
         void onFail(String result);
     }
+```
+WholeRequestListener.java
 
+```java
     /**
      * 请求结果监听（带请求开始和结束回调）
      */
@@ -1105,7 +1242,10 @@ public class EasyRequest {
          */
         void requestAfter();
     }
+```
+TransformListener.java
 
+```java
     /**
      * 请求结果转换
      */
@@ -1122,7 +1262,10 @@ public class EasyRequest {
          */
         TransformCallbackType callbackType();
     }
+```
+TransformCallbackType.java
 
+```java
     /**
      * 请求结果转换回调类型（可强制将请求结果回调为成功，失败）
      */
@@ -1140,7 +1283,10 @@ public class EasyRequest {
          */
         DEFAULT
     }
+```
+MockRequest.java
 
+```java
     /**
      * 模拟请求配置
      */
@@ -1160,7 +1306,10 @@ public class EasyRequest {
          */
         String result();
     }
+```
+MockRequestCallbackType.java
 
+```java
     /**
      * 模拟请求结果回调类型
      */
@@ -1174,8 +1323,33 @@ public class EasyRequest {
          */
         FAIL
     }
+```
+BaseRequest.java
 
-    public class BaseRequest<S, F> {
+```java
+package com.cloudling.request.network;
+
+import android.text.TextUtils;
+import com.cloudling.request.converter.BaseConverterFactory;
+import com.cloudling.request.listener.ConverterListener;
+import com.cloudling.request.listener.MockRequest;
+import com.cloudling.request.listener.RequestListener;
+import com.cloudling.request.listener.TransformListener;
+import com.cloudling.request.listener.WholeConverterListener;
+import com.cloudling.request.listener.WholeRequestListener;
+import com.cloudling.request.type.Method;
+import com.cloudling.request.type.OriginalCallback;
+import com.cloudling.request.type.RequestType;
+import com.cloudling.request.type.TransformCallbackType;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * 描述: 请求配置
+ * 联系：1966353889@qq.com
+ * 日期: 2021/12/29
+ */
+public class BaseRequest<S, F> {
     /**
      * 请求类型
      */
@@ -1295,7 +1469,7 @@ public class EasyRequest {
                             @Override
                             public void run() {
                                 if (transformListener != null) {
-                                    String realResult = transformListener.onTransformResult(result);
+                                    String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.SUCCESS, result) : transformListener.onTransformResult(result);
                                     if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                             || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
                                         if (requestListener != null) {
@@ -1327,7 +1501,7 @@ public class EasyRequest {
                         });
                     } else {
                         if (transformListener != null) {
-                            String realResult = transformListener.onTransformResult(result);
+                            String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.SUCCESS, result) : transformListener.onTransformResult(result);
                             if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                     || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
                                 if (requestListener != null) {
@@ -1365,7 +1539,7 @@ public class EasyRequest {
                             @Override
                             public void run() {
                                 if (transformListener != null) {
-                                    String realResult = transformListener.onTransformResult(result);
+                                    String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.FAILURE, result) : transformListener.onTransformResult(result);
                                     if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                             || transformListener.callbackType() == TransformCallbackType.FAIL) {
                                         if (requestListener != null) {
@@ -1397,7 +1571,7 @@ public class EasyRequest {
                         });
                     } else {
                         if (transformListener != null) {
-                            String realResult = transformListener.onTransformResult(result);
+                            String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.FAILURE, result) : transformListener.onTransformResult(result);
                             if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                     || transformListener.callbackType() == TransformCallbackType.FAIL) {
                                 if (requestListener != null) {
@@ -1556,7 +1730,11 @@ public class EasyRequest {
 
 }
 
-    public static class RequestParam {
+```
+RequestParam.java
+
+```java
+public static class RequestParam {
         private Map<String, Object> param;
 
         public RequestParam() {
@@ -1572,7 +1750,10 @@ public class EasyRequest {
             return param;
         }
     }
+```
+RequestType.java
 
+```java
     /**
      * 请求方法
      *
@@ -1584,7 +1765,10 @@ public class EasyRequest {
         PUT,
         DELETE
     }
+```
+Method.java
 
+```java
     /**
      * 请求方法
      */
@@ -1594,7 +1778,10 @@ public class EasyRequest {
         PUT,
         DELETE
     }
+```
+RequestDelegate.java
 
+```java
     /**
      * 请求代理
      */
@@ -1619,8 +1806,11 @@ public class EasyRequest {
          */
         void removeByUUID(String uuid);
     }
+```
+ILog.java
 
-    /**
+```java
+/**
      * 日志输出接口
      */
     public interface ILog {
@@ -1634,7 +1824,6 @@ public class EasyRequest {
 
         void onLogError(String TAG, String log);
     }
-
 ```
 
 BaseService.java

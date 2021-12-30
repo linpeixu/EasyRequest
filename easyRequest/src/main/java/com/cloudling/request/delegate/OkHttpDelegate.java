@@ -9,10 +9,12 @@ import com.cloudling.request.network.NetworkConfig;
 import com.cloudling.request.type.Method;
 import com.cloudling.request.type.RequestType;
 
+import org.apache.http.conn.ConnectTimeoutException;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -118,7 +120,8 @@ public class OkHttpDelegate implements RequestDelegate {
         } else {
             if (mRequestMap.get(config.getUUid()) != null) {
                 if (config.getListener() != null) {
-                    config.getListener().onFail("未知的请求方法-" + config.getType().name());
+                    String methodName = config.getMethod() != null ? config.getMethod().name() : (config.getType() != null ? config.getType().name() : null);
+                    config.getListener().onFail("未知的请求方法-" + methodName);
                     config.getListener().requestAfter();
                 }
                 removeByUUID(config.getUUid());
@@ -129,7 +132,16 @@ public class OkHttpDelegate implements RequestDelegate {
         mOkHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                String result = e.toString();
+                String result;
+                if (e instanceof SocketTimeoutException) {
+                    /*响应超时*/
+                    result = "SocketTimeoutException";
+                } else if (e instanceof ConnectTimeoutException) {
+                    /*请求超时*/
+                    result = "ConnectTimeoutException";
+                } else {
+                    result = e.toString();
+                }
                 if (mRequestMap.get(config.getUUid()) != null) {
                     if (config.getListener() != null) {
                         config.getListener().onFail(e.toString());
