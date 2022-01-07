@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.cloudling.request.BuildConfig;
+import com.cloudling.request.cache.CacheType;
 import com.cloudling.request.delegate.OkHttpDelegate;
 import com.cloudling.request.delegate.RequestDelegate;
 import com.cloudling.request.listener.ILog;
@@ -272,6 +273,8 @@ public class EasyRequest {
             logD(builder.toString());
         }
         if (config != null && config.mockRequest != null && config.getListener() != null) {
+            /*模拟请求的不允许缓存数据，因为我们缓存的是真实网络请求返回的数据*/
+            config.cacheType = CacheType.NO;
             delayTask(EasyRequest.getInstance().getHandler(), 0, new Runnable() {
                 @Override
                 public void run() {

@@ -1,7 +1,12 @@
 package com.cloudling.request.network;
 
+import android.net.Uri;
 import android.text.TextUtils;
 
+import com.cloudling.request.cache.AesHelper;
+import com.cloudling.request.cache.CacheHelper;
+import com.cloudling.request.cache.CacheType;
+import com.cloudling.request.cache.ReadCacheType;
 import com.cloudling.request.converter.BaseConverterFactory;
 import com.cloudling.request.listener.ConverterListener;
 import com.cloudling.request.listener.MockRequest;
@@ -14,6 +19,7 @@ import com.cloudling.request.type.OriginalCallback;
 import com.cloudling.request.type.RequestType;
 import com.cloudling.request.type.TransformCallbackType;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,7 +40,7 @@ public class BaseRequest<S, F> {
     /**
      * 请求参数
      */
-    Map<String, Object> params;
+    LinkedHashMap<String, Object> params;
     /**
      * 请求回调（外部设置）
      */
@@ -70,6 +76,14 @@ public class BaseRequest<S, F> {
     final String TAG;
     final BaseConverterFactory<S, F> converterFactory;
     final ConverterListener<S, F> converterListener;
+    /**
+     * 缓存的类型
+     */
+    CacheType cacheType;
+    /**
+     * 读取缓存的类型
+     */
+    ReadCacheType readCacheType;
 
     private BaseRequest(Builder<S, F> builder) {
         uuid = UUID.randomUUID().toString();
@@ -85,6 +99,16 @@ public class BaseRequest<S, F> {
         TAG = builder.TAG;
         converterFactory = builder.converterFactory;
         converterListener = builder.converterListener;
+        if (builder.cacheType == null) {
+            cacheType = CacheType.NO;
+        } else {
+            cacheType = builder.cacheType;
+        }
+        if (builder.readCacheType == null) {
+            readCacheType = ReadCacheType.NO;
+        } else {
+            readCacheType = builder.readCacheType;
+        }
         if (requestListener != null || converterListener != null) {
             realRequestListener = new WholeRequestListener() {
                 @Override
@@ -137,12 +161,40 @@ public class BaseRequest<S, F> {
 
                 @Override
                 public void onSuccess(String result) {
+                    if (readCacheType == null || readCacheType != ReadCacheType.NO) {
+                        if (cacheType == CacheType.SOURCE_SUCCESS) {
+                            CacheHelper.getInstance().addCache(OriginalCallback.SUCCESS, AesHelper.encryptAsString(getCacheKey() + OriginalCallback.SUCCESS.name()), result);
+                        }
+                    } else {
+                        String cache = CacheHelper.getInstance().getCache(AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_FAIL ? OriginalCallback.FAILURE : OriginalCallback.SUCCESS.name())));
+                        if (!TextUtils.isEmpty(cache)) {
+                            result = cache;
+                        }
+                        if (readCacheType == ReadCacheType.SOURCE_FAIL) {
+                            /*当前网络请求成功，但是设置了读取失败的缓存数据，所以需要将请求强制转换为失败*/
+                            /*这里需要注意的是如果设置了transformListener，这里将不强制转换结果，将该操作仍然交给调用者*/
+                            if (transformListener == null) {
+                                transformListener = new TransformListener() {
+                                    @Override
+                                    public String onTransformResult(String result) {
+                                        return result;
+                                    }
+
+                                    @Override
+                                    public TransformCallbackType callbackType() {
+                                        return TransformCallbackType.FAIL;
+                                    }
+                                };
+                            }
+                        }
+                    }
                     if (EasyRequest.getInstance().getHandler() != null) {
+                        String finalResult = result;
                         EasyRequest.getInstance().getHandler().post(new Runnable() {
                             @Override
                             public void run() {
                                 if (transformListener != null) {
-                                    String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.SUCCESS, result) : transformListener.onTransformResult(result);
+                                    String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.SUCCESS, finalResult) : transformListener.onTransformResult(finalResult);
                                     if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                             || transformListener.callbackType() == TransformCallbackType.SUCCESS) {
                                         if (requestListener != null) {
@@ -163,12 +215,12 @@ public class BaseRequest<S, F> {
                                     }
                                 } else {
                                     if (requestListener != null) {
-                                        requestListener.onSuccess(result);
+                                        requestListener.onSuccess(finalResult);
                                     }
                                     if (converterListener != null && converterFactory != null) {
-                                        converterListener.onSuccess(converterFactory.converterSuccess(result));
+                                        converterListener.onSuccess(converterFactory.converterSuccess(finalResult));
                                     }
-                                    EasyRequest.getInstance().logI("[onSuccess]result：" + result);
+                                    EasyRequest.getInstance().logI("[onSuccess]result：" + finalResult);
                                 }
                             }
                         });
@@ -207,12 +259,40 @@ public class BaseRequest<S, F> {
 
                 @Override
                 public void onFail(String result) {
+                    if (readCacheType == null || readCacheType != ReadCacheType.NO) {
+                        if (cacheType == CacheType.SOURCE_FAIL) {
+                            CacheHelper.getInstance().addCache(OriginalCallback.FAILURE, AesHelper.encryptAsString(getCacheKey() + OriginalCallback.FAILURE.name()), result);
+                        }
+                    } else {
+                        String cache = CacheHelper.getInstance().getCache(AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_SUCCESS ? OriginalCallback.SUCCESS : OriginalCallback.FAILURE.name())));
+                        if (!TextUtils.isEmpty(cache)) {
+                            result = cache;
+                        }
+                        if (readCacheType == ReadCacheType.SOURCE_SUCCESS) {
+                            /*当前网络请求失败，但是设置了读取成功的缓存数据，所以需要将请求强制转换为成功*/
+                            /*这里需要注意的是如果设置了transformListener，这里将不强制转换结果，将该操作仍然交给调用者*/
+                            if (transformListener == null) {
+                                transformListener = new TransformListener() {
+                                    @Override
+                                    public String onTransformResult(String result) {
+                                        return result;
+                                    }
+
+                                    @Override
+                                    public TransformCallbackType callbackType() {
+                                        return TransformCallbackType.SUCCESS;
+                                    }
+                                };
+                            }
+                        }
+                    }
                     if (EasyRequest.getInstance().getHandler() != null) {
+                        String finalResult = result;
                         EasyRequest.getInstance().getHandler().post(new Runnable() {
                             @Override
                             public void run() {
                                 if (transformListener != null) {
-                                    String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.FAILURE, result) : transformListener.onTransformResult(result);
+                                    String realResult = transformListener instanceof OriginalTransformListener ? ((OriginalTransformListener) transformListener).onTransformResult(OriginalCallback.FAILURE, finalResult) : transformListener.onTransformResult(finalResult);
                                     if (transformListener.callbackType() == TransformCallbackType.DEFAULT
                                             || transformListener.callbackType() == TransformCallbackType.FAIL) {
                                         if (requestListener != null) {
@@ -233,12 +313,12 @@ public class BaseRequest<S, F> {
                                     }
                                 } else {
                                     if (requestListener != null) {
-                                        requestListener.onFail(result);
+                                        requestListener.onFail(finalResult);
                                     }
                                     if (converterListener != null && converterFactory != null) {
-                                        converterListener.onFail(converterFactory.converterFail(result));
+                                        converterListener.onFail(converterFactory.converterFail(finalResult));
                                     }
-                                    EasyRequest.getInstance().logE("[onFail]result：" + result);
+                                    EasyRequest.getInstance().logE("[onFail]result：" + finalResult);
                                 }
                             }
                         });
@@ -297,7 +377,7 @@ public class BaseRequest<S, F> {
         return method;
     }
 
-    public Map<String, Object> getParams() {
+    public LinkedHashMap<String, Object> getParams() {
         return params;
     }
 
@@ -318,10 +398,40 @@ public class BaseRequest<S, F> {
         return builder.toString();
     }
 
+    /**
+     * 获取用于缓存的key（未加密）
+     */
+    public String getCacheKey() {
+        StringBuilder builder = new StringBuilder();
+        if (method != null) {
+            builder.append(method.name());
+        } else if (requestType != null) {
+            builder.append(requestType.name());
+        }
+        if (!TextUtils.isEmpty(name)) {
+            builder.append(NetworkConfig.getInstance().getHost(name));
+        } else {
+            builder.append(!TextUtils.isEmpty(host) ? host : NetworkConfig.getInstance().getHost());
+        }
+        if (!TextUtils.isEmpty(path)) {
+            builder.append(path);
+        }
+        if (method == Method.GET || requestType == RequestType.GET) {
+            if (params != null) {
+                Uri.Builder uriBuilder = Uri.parse(builder.toString()).buildUpon();
+                for (Map.Entry<String, Object> entry : params.entrySet()) {
+                    uriBuilder.appendQueryParameter(entry.getKey(), String.valueOf(entry.getValue()));
+                }
+                return uriBuilder.build().toString();
+            }
+        }
+        return builder.toString();
+    }
+
     public static class Builder<S, F> {
         RequestType requestType;
         Method method;
-        Map<String, Object> params;
+        LinkedHashMap<String, Object> params;
         RequestListener requestListener;
         TransformListener transformListener;
         MockRequest mockRequest;
@@ -331,6 +441,8 @@ public class BaseRequest<S, F> {
         String TAG;
         BaseConverterFactory<S, F> converterFactory;
         ConverterListener<S, F> converterListener;
+        CacheType cacheType;
+        ReadCacheType readCacheType;
 
         /**
          * @deprecated 推荐使用 {@link Builder#method(Method)}
@@ -345,7 +457,7 @@ public class BaseRequest<S, F> {
             return this;
         }
 
-        public Builder<S, F> params(Map<String, Object> params) {
+        public Builder<S, F> params(LinkedHashMap<String, Object> params) {
             this.params = params;
             return this;
         }
@@ -392,6 +504,16 @@ public class BaseRequest<S, F> {
 
         public Builder<S, F> addConverterFactory(BaseConverterFactory<S, F> converterFactory) {
             this.converterFactory = converterFactory;
+            return this;
+        }
+
+        public Builder<S, F> cache(CacheType cacheType) {
+            this.cacheType = cacheType;
+            return this;
+        }
+
+        public Builder<S, F> readCache(ReadCacheType readCacheType) {
+            this.readCacheType = readCacheType;
             return this;
         }
 
