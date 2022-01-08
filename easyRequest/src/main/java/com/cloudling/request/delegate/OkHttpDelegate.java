@@ -69,6 +69,32 @@ public class OkHttpDelegate implements RequestDelegate {
                 .build();
     }
 
+    public OkHttpDelegate(boolean retryOnConnectionFailure) {
+        mRequestMap = new ConcurrentHashMap<>();
+        mOkHttpClient = new OkHttpClient().newBuilder()
+                .retryOnConnectionFailure(retryOnConnectionFailure)
+                .connectTimeout(NetworkConfig.getInstance().getConnectTimeout(), TimeUnit.SECONDS)
+                .readTimeout(NetworkConfig.getInstance().getReadTimeout(), TimeUnit.SECONDS)
+                .writeTimeout(NetworkConfig.getInstance().getWriteTimeout(), TimeUnit.SECONDS)
+                .addInterceptor(new Interceptor() {
+                    @Override
+                    public @NotNull
+                    Response intercept(@NotNull Chain chain) throws IOException {
+                        Request.Builder mBuilder = chain.request().newBuilder().removeHeader("Accept-Encoding");
+                        ArrayMap<String, Object> headersMap = NetworkConfig.getInstance().getHeaders();
+                        if (headersMap != null) {
+                            for (Map.Entry<String, Object> entry : headersMap.entrySet()) {
+                                if (!TextUtils.isEmpty(entry.getKey()) && entry.getValue() != null) {
+                                    mBuilder.header(entry.getKey(), (String) entry.getValue());
+                                }
+                            }
+                        }
+                        return chain.proceed(mBuilder.build());
+                    }
+                })
+                .build();
+    }
+
     public OkHttpDelegate(OkHttpClient okHttpClient) {
         mRequestMap = new ConcurrentHashMap<>();
         this.mOkHttpClient = okHttpClient;
