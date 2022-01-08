@@ -12,8 +12,8 @@ Add it in your root build.gradle at the end of repositories:
 Step 2. Add the dependency
 ```java
     dependencies {
-	        implementation 'com.github.linpeixu:EasyRequest:1.2.0'
-            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.2.0'
+	        implementation 'com.github.linpeixu:EasyRequest:1.2.1'
+            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.2.1'
 	}
 ```
 
@@ -314,6 +314,64 @@ EasyRequest.getInstance().request(DefaultRequest.create()
                 })
                 .build());
 ```
+
+4、设置网路请求回调数据缓存
+
+```java
+EasyRequest.getInstance().request(DefaultRequest.create()
+                    .method(Method.POST)
+                    .host("https://api.test.com/")//这里需要说明的是，不设置host时框架会去读取NetworkConfig设置的service的host
+                    .path("login/")
+                    .params(new RequestParam()
+                            .put("mobile", "13000000000")
+                            .put("password", "123456")
+                            .build())
+                    .cache(CacheType.SOURCE_SUCCESS)//网路请求成功时缓存成功的数据
+                    .listener(new RequestListener() {
+                        @Override
+                        public void onSuccess(String result) {
+                           /*请求成功回调，result为接口返回的json数据*/
+                        }
+
+                        @Override
+                        public void onFail(String result) {
+                            /*请求失败回调，result为接口返回的数据*/
+                        }
+                    })
+                    .build());
+```
+
+5、设置读取缓存的网路请求回调数据
+
+```java
+EasyRequest.getInstance().request(DefaultRequest.create()
+                    .method(Method.POST)
+                    .host("https://api.test.com/")//这里需要说明的是，不设置host时框架会去读取NetworkConfig设置的service的host
+                    .path("login/")
+                    .params(new RequestParam()
+                            .put("mobile", "13000000000")
+                            .put("password", "123456")
+                            .build())
+                    .readCache(ReadCacheType.SOURCE_SUCCESS)//读取本地缓存的网络请求成功的数据
+                    .listener(new RequestListener() {
+                        @Override
+                        public void onSuccess(String result) {
+                           /*请求成功回调，result为接口返回的json数据*/
+                        }
+
+                        @Override
+                        public void onFail(String result) {
+                            /*请求失败回调，result为接口返回的数据*/
+                        }
+                    })
+                    .build());
+```
+readCache(ReadCacheType readCacheType)方法解释：
+1. ReadCacheType.NO，表示不读取本地缓存的数据；
+2. ReadCacheType.SOURCE_SUCCESS，表示读取本地缓存的网络请求成功的数据。当真实的网络请求成功时，将会把回调的参数替换为本地缓存的数据（若本地有缓存的数据）。当真实的网络请求失败时，将会把回调的参数替换为本地缓存的数据，同时强制执行“将当前网络请求结果由失败转为成功”；
+3. ReadCacheType.SOURCE_FAIL，表示读取本地缓存的网络请求失败的数据。当真实的网络请求失败时，将会把回调的参数替换为本地缓存的数据（若本地有缓存的数据）。当真实的网络请求成功时，将会把回调的参数替换为本地缓存的数据，同时强制执行“将当前网络请求结果由成功转为失败”；
+4. ReadCacheType.DEFAULT，表示默认（跟随网络请求回调成功或失败读取对应类型的缓存数据）。当真实的网络请求成功时，将会把回调的参数替换为本地缓存的数据（若本地有缓存的数据）。当真实的网络请求失败时，将会把回调的参数替换为本地缓存的数据（若本地有缓存的数据）；
+
 
 这里我们默认实现了OkHttp的请求代理，如通过其它网路库的可自行实现RequestDelegate，然后调用下边的方法设置网路请求代理：
 

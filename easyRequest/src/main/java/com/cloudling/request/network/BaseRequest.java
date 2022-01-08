@@ -2,6 +2,7 @@ package com.cloudling.request.network;
 
 import android.net.Uri;
 import android.text.TextUtils;
+
 import com.cloudling.request.cache.AesHelper;
 import com.cloudling.request.cache.CacheHelper;
 import com.cloudling.request.cache.CacheType;
@@ -165,7 +166,7 @@ public class BaseRequest<S, F> {
 
                 @Override
                 public void onSuccess(String result) {
-                    if (readCacheType == ReadCacheType.SOURCE_SUCCESS || readCacheType == ReadCacheType.SOURCE_FAIL) {
+                    if (readCacheType == ReadCacheType.DEFAULT || readCacheType == ReadCacheType.SOURCE_SUCCESS || readCacheType == ReadCacheType.SOURCE_FAIL) {
                         String readKey = AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_FAIL ? OriginalCallback.FAILURE.name() : OriginalCallback.SUCCESS.name()));
                         String cache = CacheHelper.getInstance().getCache(readKey);
                         if (cacheType == CacheType.SOURCE_SUCCESS) {
@@ -274,7 +275,7 @@ public class BaseRequest<S, F> {
 
                 @Override
                 public void onFail(String result) {
-                    if (readCacheType == ReadCacheType.SOURCE_SUCCESS || readCacheType == ReadCacheType.SOURCE_FAIL) {
+                    if (readCacheType == ReadCacheType.DEFAULT || readCacheType == ReadCacheType.SOURCE_SUCCESS || readCacheType == ReadCacheType.SOURCE_FAIL) {
                         String readKey = AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_SUCCESS ? OriginalCallback.SUCCESS.name() : OriginalCallback.FAILURE.name()));
                         String cache = CacheHelper.getInstance().getCache(readKey);
                         if (cacheType == CacheType.SOURCE_FAIL) {
