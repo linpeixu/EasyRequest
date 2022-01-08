@@ -166,10 +166,10 @@ public class BaseRequest<S, F> {
 
                 @Override
                 public void onSuccess(String result) {
-                    if (readCacheType == ReadCacheType.DEFAULT || readCacheType == ReadCacheType.SOURCE_SUCCESS || readCacheType == ReadCacheType.SOURCE_FAIL) {
-                        String readKey = AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_FAIL ? OriginalCallback.FAILURE.name() : OriginalCallback.SUCCESS.name()));
+                    if (readCacheType == ReadCacheType.DEFAULT || readCacheType == ReadCacheType.READ_SUCCESS_AFTER_SUCCESS || readCacheType == ReadCacheType.READ_FAIL_AFTER_SUCCESS) {
+                        String readKey = AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.READ_FAIL_AFTER_SUCCESS ? OriginalCallback.FAILURE.name() : OriginalCallback.SUCCESS.name()));
                         String cache = CacheHelper.getInstance().getCache(readKey);
-                        if (cacheType == CacheType.SOURCE_SUCCESS) {
+                        if (cacheType == CacheType.SOURCE_SUCCESS || cacheType == CacheType.DEFAULT) {
                             String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.SUCCESS.name());
                             EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.SUCCESS.name() + "\n执行缓存->加密key:" + writeKey);
                             CacheHelper.getInstance().addCache(OriginalCallback.SUCCESS, writeKey, result);
@@ -177,7 +177,7 @@ public class BaseRequest<S, F> {
                         EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n读取缓存->readKey:" + readKey + "\n读取缓存->cache:" + cache);
                         if (!TextUtils.isEmpty(cache)) {
                             result = cache;
-                            if (readCacheType == ReadCacheType.SOURCE_FAIL) {
+                            if (readCacheType == ReadCacheType.READ_FAIL_AFTER_SUCCESS) {
                                 /*当前网络请求成功，但是设置了读取失败的缓存数据，所以需要将请求强制转换为失败*/
                                 /*这里需要注意的是如果设置了transformListener，这里强制转换结果为失败*/
                                 if (transformListener == null || transformListener.callbackType() != TransformCallbackType.FAIL) {
@@ -198,7 +198,7 @@ public class BaseRequest<S, F> {
                             }
                         }
                     } else {
-                        if (cacheType == CacheType.SOURCE_SUCCESS) {
+                        if (cacheType == CacheType.SOURCE_SUCCESS || cacheType == CacheType.DEFAULT) {
                             String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.SUCCESS.name());
                             EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.SUCCESS.name() + "\n执行缓存->加密key:" + writeKey);
                             CacheHelper.getInstance().addCache(OriginalCallback.SUCCESS, writeKey, result);
@@ -275,10 +275,10 @@ public class BaseRequest<S, F> {
 
                 @Override
                 public void onFail(String result) {
-                    if (readCacheType == ReadCacheType.DEFAULT || readCacheType == ReadCacheType.SOURCE_SUCCESS || readCacheType == ReadCacheType.SOURCE_FAIL) {
-                        String readKey = AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_SUCCESS ? OriginalCallback.SUCCESS.name() : OriginalCallback.FAILURE.name()));
+                    if (readCacheType == ReadCacheType.DEFAULT || readCacheType == ReadCacheType.READ_SUCCESS_AFTER_FAIL || readCacheType == ReadCacheType.READ_FAIL_AFTER_FAIL) {
+                        String readKey = AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.READ_SUCCESS_AFTER_FAIL ? OriginalCallback.SUCCESS.name() : OriginalCallback.FAILURE.name()));
                         String cache = CacheHelper.getInstance().getCache(readKey);
-                        if (cacheType == CacheType.SOURCE_FAIL) {
+                        if (cacheType == CacheType.SOURCE_FAIL || cacheType == CacheType.DEFAULT) {
                             String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.FAILURE.name());
                             EasyRequest.getInstance().logD("[BaseRequest-onFail]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.FAILURE.name() + "\n执行缓存->加密key:" + writeKey);
                             CacheHelper.getInstance().addCache(OriginalCallback.FAILURE, writeKey, result);
@@ -286,7 +286,7 @@ public class BaseRequest<S, F> {
                         EasyRequest.getInstance().logD("[BaseRequest-onFail]\n读取缓存->readKey:" + readKey + "\n读取缓存->cache:" + cache);
                         if (!TextUtils.isEmpty(cache)) {
                             result = cache;
-                            if (readCacheType == ReadCacheType.SOURCE_SUCCESS) {
+                            if (readCacheType == ReadCacheType.READ_SUCCESS_AFTER_FAIL) {
                                 /*当前网络请求失败，但是设置了读取成功的缓存数据，所以需要将请求强制转换为成功*/
                                 /*这里需要注意的是如果设置了transformListener，这里强制转换结果为成功*/
                                 if (transformListener == null || transformListener.callbackType() != TransformCallbackType.SUCCESS) {
@@ -307,7 +307,7 @@ public class BaseRequest<S, F> {
                             }
                         }
                     } else {
-                        if (cacheType == CacheType.SOURCE_FAIL) {
+                        if (cacheType == CacheType.SOURCE_FAIL || cacheType == CacheType.DEFAULT) {
                             String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.FAILURE.name());
                             EasyRequest.getInstance().logD("[BaseRequest-onFail]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.FAILURE.name() + "\n执行缓存->加密key:" + writeKey);
                             CacheHelper.getInstance().addCache(OriginalCallback.FAILURE, writeKey, result);

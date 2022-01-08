@@ -15,11 +15,19 @@ public enum ReadCacheType {
      */
     DEFAULT,
     /**
-     * 读取成功（原始网络请求成功）的缓存数据
+     * 当前网络请求成功时读取成功（原始网络请求成功）的缓存数据
      */
-    SOURCE_SUCCESS,
+    READ_SUCCESS_AFTER_SUCCESS,
     /**
-     * 读取失败（原始网络请求失败）的缓存数据
+     * 当网络请求成功时读取失败（原始网络请求失败）的缓存数据
      */
-    SOURCE_FAIL,
+    READ_FAIL_AFTER_SUCCESS,
+    /**
+     * 当前网络请求失败时读取成功（原始网络请求成功）的缓存数据
+     */
+    READ_SUCCESS_AFTER_FAIL,
+    /**
+     * 当网络请求失败时读取失败（原始网络请求失败）的缓存数据
+     */
+    READ_FAIL_AFTER_FAIL
 }

@@ -7,9 +7,13 @@ package com.cloudling.request.cache;
  */
 public enum CacheType {
     /**
-     * 不缓存或不读取
+     * 不缓存
      */
     NO,
+    /**
+     * 默认（跟随网络请求回调成功或失败缓存对应类型的数据）
+     */
+    DEFAULT,
     /**
      * 缓存成功（原始网络请求成功）的数据或读取成功（原始网络请求成功）的缓存数据
      */
