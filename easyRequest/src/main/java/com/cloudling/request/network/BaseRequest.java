@@ -2,7 +2,6 @@ package com.cloudling.request.network;
 
 import android.net.Uri;
 import android.text.TextUtils;
-
 import com.cloudling.request.cache.AesHelper;
 import com.cloudling.request.cache.CacheHelper;
 import com.cloudling.request.cache.CacheType;
@@ -84,6 +83,10 @@ public class BaseRequest<S, F> {
      * 读取缓存的类型
      */
     ReadCacheType readCacheType;
+    /**
+     * 缓存的key（未加密）
+     */
+    String cacheKey;
 
     private BaseRequest(Builder<S, F> builder) {
         uuid = UUID.randomUUID().toString();
@@ -109,6 +112,7 @@ public class BaseRequest<S, F> {
         } else {
             readCacheType = builder.readCacheType;
         }
+        cacheKey = builder.cacheKey;
         if (requestListener != null || converterListener != null) {
             realRequestListener = new WholeRequestListener() {
                 @Override
@@ -161,31 +165,42 @@ public class BaseRequest<S, F> {
 
                 @Override
                 public void onSuccess(String result) {
-                    if (readCacheType == null || readCacheType != ReadCacheType.NO) {
+                    if (readCacheType == ReadCacheType.SOURCE_SUCCESS || readCacheType == ReadCacheType.SOURCE_FAIL) {
+                        String readKey = AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_FAIL ? OriginalCallback.FAILURE.name() : OriginalCallback.SUCCESS.name()));
+                        String cache = CacheHelper.getInstance().getCache(readKey);
                         if (cacheType == CacheType.SOURCE_SUCCESS) {
-                            CacheHelper.getInstance().addCache(OriginalCallback.SUCCESS, AesHelper.encryptAsString(getCacheKey() + OriginalCallback.SUCCESS.name()), result);
+                            String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.SUCCESS.name());
+                            EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.SUCCESS.name() + "\n执行缓存->加密key:" + writeKey);
+                            CacheHelper.getInstance().addCache(OriginalCallback.SUCCESS, writeKey, result);
                         }
-                    } else {
-                        String cache = CacheHelper.getInstance().getCache(AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_FAIL ? OriginalCallback.FAILURE : OriginalCallback.SUCCESS.name())));
+                        EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n读取缓存->readKey:" + readKey + "\n读取缓存->cache:" + cache);
                         if (!TextUtils.isEmpty(cache)) {
                             result = cache;
-                        }
-                        if (readCacheType == ReadCacheType.SOURCE_FAIL) {
-                            /*当前网络请求成功，但是设置了读取失败的缓存数据，所以需要将请求强制转换为失败*/
-                            /*这里需要注意的是如果设置了transformListener，这里将不强制转换结果，将该操作仍然交给调用者*/
-                            if (transformListener == null) {
-                                transformListener = new TransformListener() {
-                                    @Override
-                                    public String onTransformResult(String result) {
-                                        return result;
-                                    }
+                            if (readCacheType == ReadCacheType.SOURCE_FAIL) {
+                                /*当前网络请求成功，但是设置了读取失败的缓存数据，所以需要将请求强制转换为失败*/
+                                /*这里需要注意的是如果设置了transformListener，这里强制转换结果为失败*/
+                                if (transformListener == null || transformListener.callbackType() != TransformCallbackType.FAIL) {
+                                    EasyRequest.getInstance().logD("BaseRequest-[onSuccess]\n读取缓存成功->强制将结果转为fail");
+                                    TransformListener cacheTransformListener = transformListener;
+                                    transformListener = new TransformListener() {
+                                        @Override
+                                        public String onTransformResult(String result) {
+                                            return cacheTransformListener == null ? result : cacheTransformListener instanceof OriginalTransformListener ? (((OriginalTransformListener) cacheTransformListener).onTransformResult(OriginalCallback.FAILURE, result)) : cacheTransformListener.onTransformResult(result);
+                                        }
 
-                                    @Override
-                                    public TransformCallbackType callbackType() {
-                                        return TransformCallbackType.FAIL;
-                                    }
-                                };
+                                        @Override
+                                        public TransformCallbackType callbackType() {
+                                            return TransformCallbackType.FAIL;
+                                        }
+                                    };
+                                }
                             }
+                        }
+                    } else {
+                        if (cacheType == CacheType.SOURCE_SUCCESS) {
+                            String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.SUCCESS.name());
+                            EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.SUCCESS.name() + "\n执行缓存->加密key:" + writeKey);
+                            CacheHelper.getInstance().addCache(OriginalCallback.SUCCESS, writeKey, result);
                         }
                     }
                     if (EasyRequest.getInstance().getHandler() != null) {
@@ -203,7 +218,7 @@ public class BaseRequest<S, F> {
                                         if (converterListener != null && converterFactory != null) {
                                             converterListener.onSuccess(converterFactory.converterSuccess(realResult));
                                         }
-                                        EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                        EasyRequest.getInstance().logI("[onSuccess]\nresult:" + realResult);
                                     } else if (transformListener.callbackType() == TransformCallbackType.FAIL) {
                                         if (requestListener != null) {
                                             requestListener.onFail(realResult);
@@ -211,7 +226,7 @@ public class BaseRequest<S, F> {
                                         if (converterListener != null && converterFactory != null) {
                                             converterListener.onFail(converterFactory.converterFail(realResult));
                                         }
-                                        EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                        EasyRequest.getInstance().logE("[onFail]\nresult:" + realResult);
                                     }
                                 } else {
                                     if (requestListener != null) {
@@ -220,7 +235,7 @@ public class BaseRequest<S, F> {
                                     if (converterListener != null && converterFactory != null) {
                                         converterListener.onSuccess(converterFactory.converterSuccess(finalResult));
                                     }
-                                    EasyRequest.getInstance().logI("[onSuccess]result：" + finalResult);
+                                    EasyRequest.getInstance().logI("[onSuccess]\nresult:" + finalResult);
                                 }
                             }
                         });
@@ -235,7 +250,7 @@ public class BaseRequest<S, F> {
                                 if (converterListener != null && converterFactory != null) {
                                     converterListener.onSuccess(converterFactory.converterSuccess(realResult));
                                 }
-                                EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                EasyRequest.getInstance().logI("[BaseRequest-onSuccess]\nresult:" + realResult);
                             } else if (transformListener.callbackType() == TransformCallbackType.FAIL) {
                                 if (requestListener != null) {
                                     requestListener.onFail(realResult);
@@ -243,7 +258,7 @@ public class BaseRequest<S, F> {
                                 if (converterListener != null && converterFactory != null) {
                                     converterListener.onFail(converterFactory.converterFail(realResult));
                                 }
-                                EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                EasyRequest.getInstance().logE("[BaseRequest-onFail]\nresult:" + realResult);
                             }
                         } else {
                             if (requestListener != null) {
@@ -252,38 +267,49 @@ public class BaseRequest<S, F> {
                             if (converterListener != null && converterFactory != null) {
                                 converterListener.onSuccess(converterFactory.converterSuccess(result));
                             }
-                            EasyRequest.getInstance().logI("[onSuccess]result：" + result);
+                            EasyRequest.getInstance().logI("[BaseRequest-onSuccess]\nresult:" + result);
                         }
                     }
                 }
 
                 @Override
                 public void onFail(String result) {
-                    if (readCacheType == null || readCacheType != ReadCacheType.NO) {
+                    if (readCacheType == ReadCacheType.SOURCE_SUCCESS || readCacheType == ReadCacheType.SOURCE_FAIL) {
+                        String readKey = AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_SUCCESS ? OriginalCallback.SUCCESS.name() : OriginalCallback.FAILURE.name()));
+                        String cache = CacheHelper.getInstance().getCache(readKey);
                         if (cacheType == CacheType.SOURCE_FAIL) {
-                            CacheHelper.getInstance().addCache(OriginalCallback.FAILURE, AesHelper.encryptAsString(getCacheKey() + OriginalCallback.FAILURE.name()), result);
+                            String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.FAILURE.name());
+                            EasyRequest.getInstance().logD("[BaseRequest-onFail]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.FAILURE.name() + "\n执行缓存->加密key:" + writeKey);
+                            CacheHelper.getInstance().addCache(OriginalCallback.FAILURE, writeKey, result);
                         }
-                    } else {
-                        String cache = CacheHelper.getInstance().getCache(AesHelper.encryptAsString(getCacheKey() + (readCacheType == ReadCacheType.SOURCE_SUCCESS ? OriginalCallback.SUCCESS : OriginalCallback.FAILURE.name())));
+                        EasyRequest.getInstance().logD("[BaseRequest-onFail]\n读取缓存->readKey:" + readKey + "\n读取缓存->cache:" + cache);
                         if (!TextUtils.isEmpty(cache)) {
                             result = cache;
-                        }
-                        if (readCacheType == ReadCacheType.SOURCE_SUCCESS) {
-                            /*当前网络请求失败，但是设置了读取成功的缓存数据，所以需要将请求强制转换为成功*/
-                            /*这里需要注意的是如果设置了transformListener，这里将不强制转换结果，将该操作仍然交给调用者*/
-                            if (transformListener == null) {
-                                transformListener = new TransformListener() {
-                                    @Override
-                                    public String onTransformResult(String result) {
-                                        return result;
-                                    }
+                            if (readCacheType == ReadCacheType.SOURCE_SUCCESS) {
+                                /*当前网络请求失败，但是设置了读取成功的缓存数据，所以需要将请求强制转换为成功*/
+                                /*这里需要注意的是如果设置了transformListener，这里强制转换结果为成功*/
+                                if (transformListener == null || transformListener.callbackType() != TransformCallbackType.SUCCESS) {
+                                    EasyRequest.getInstance().logD("[BaseRequest-onFail]\n读取缓存成功->强制将结果转为success");
+                                    TransformListener cacheTransformListener = transformListener;
+                                    transformListener = new TransformListener() {
+                                        @Override
+                                        public String onTransformResult(String result) {
+                                            return cacheTransformListener == null ? result : cacheTransformListener instanceof OriginalTransformListener ? (((OriginalTransformListener) cacheTransformListener).onTransformResult(OriginalCallback.SUCCESS, result)) : cacheTransformListener.onTransformResult(result);
+                                        }
 
-                                    @Override
-                                    public TransformCallbackType callbackType() {
-                                        return TransformCallbackType.SUCCESS;
-                                    }
-                                };
+                                        @Override
+                                        public TransformCallbackType callbackType() {
+                                            return TransformCallbackType.SUCCESS;
+                                        }
+                                    };
+                                }
                             }
+                        }
+                    } else {
+                        if (cacheType == CacheType.SOURCE_FAIL) {
+                            String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.FAILURE.name());
+                            EasyRequest.getInstance().logD("[BaseRequest-onFail]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.FAILURE.name() + "\n执行缓存->加密key:" + writeKey);
+                            CacheHelper.getInstance().addCache(OriginalCallback.FAILURE, writeKey, result);
                         }
                     }
                     if (EasyRequest.getInstance().getHandler() != null) {
@@ -301,7 +327,7 @@ public class BaseRequest<S, F> {
                                         if (converterListener != null && converterFactory != null) {
                                             converterListener.onFail(converterFactory.converterFail(realResult));
                                         }
-                                        EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                        EasyRequest.getInstance().logE("[BaseRequest-onFail]\nresult:" + realResult);
                                     } else if (transformListener.callbackType() == TransformCallbackType.SUCCESS) {
                                         if (requestListener != null) {
                                             requestListener.onSuccess(realResult);
@@ -309,7 +335,7 @@ public class BaseRequest<S, F> {
                                         if (converterListener != null && converterFactory != null) {
                                             converterListener.onSuccess(converterFactory.converterSuccess(realResult));
                                         }
-                                        EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                        EasyRequest.getInstance().logI("[BaseRequest-onSuccess]\nresult:" + realResult);
                                     }
                                 } else {
                                     if (requestListener != null) {
@@ -318,7 +344,7 @@ public class BaseRequest<S, F> {
                                     if (converterListener != null && converterFactory != null) {
                                         converterListener.onFail(converterFactory.converterFail(finalResult));
                                     }
-                                    EasyRequest.getInstance().logE("[onFail]result：" + finalResult);
+                                    EasyRequest.getInstance().logE("[BaseRequest-onFail]\nresult:" + finalResult);
                                 }
                             }
                         });
@@ -333,7 +359,7 @@ public class BaseRequest<S, F> {
                                 if (converterListener != null && converterFactory != null) {
                                     converterListener.onFail(converterFactory.converterFail(realResult));
                                 }
-                                EasyRequest.getInstance().logE("[onFail]result：" + realResult);
+                                EasyRequest.getInstance().logE("[BaseRequest-onFail]\nresult:" + realResult);
                             } else if (transformListener.callbackType() == TransformCallbackType.SUCCESS) {
                                 if (requestListener != null) {
                                     requestListener.onSuccess(realResult);
@@ -341,7 +367,7 @@ public class BaseRequest<S, F> {
                                 if (converterListener != null && converterFactory != null) {
                                     converterListener.onSuccess(converterFactory.converterSuccess(realResult));
                                 }
-                                EasyRequest.getInstance().logI("[onSuccess]result：" + realResult);
+                                EasyRequest.getInstance().logI("[BaseRequest-onSuccess]\nresult:" + realResult);
                             }
                         } else {
                             if (requestListener != null) {
@@ -350,7 +376,7 @@ public class BaseRequest<S, F> {
                             if (converterListener != null && converterFactory != null) {
                                 converterListener.onFail(converterFactory.converterFail(result));
                             }
-                            EasyRequest.getInstance().logE("[onFail]result：" + result);
+                            EasyRequest.getInstance().logE("[BaseRequest-onFail]\nresult:" + result);
                         }
                     }
                 }
@@ -402,6 +428,9 @@ public class BaseRequest<S, F> {
      * 获取用于缓存的key（未加密）
      */
     public String getCacheKey() {
+        if (!TextUtils.isEmpty(cacheKey)) {
+            return cacheKey;
+        }
         StringBuilder builder = new StringBuilder();
         if (method != null) {
             builder.append(method.name());
@@ -443,6 +472,7 @@ public class BaseRequest<S, F> {
         ConverterListener<S, F> converterListener;
         CacheType cacheType;
         ReadCacheType readCacheType;
+        String cacheKey;
 
         /**
          * @deprecated 推荐使用 {@link Builder#method(Method)}
@@ -514,6 +544,11 @@ public class BaseRequest<S, F> {
 
         public Builder<S, F> readCache(ReadCacheType readCacheType) {
             this.readCacheType = readCacheType;
+            return this;
+        }
+
+        public Builder<S, F> cacheKey(String cacheKey) {
+            this.cacheKey = cacheKey;
             return this;
         }
 

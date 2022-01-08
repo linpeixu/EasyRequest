@@ -33,6 +33,11 @@ public abstract class BaseCacheImpl {
     }
 
     /**
+     * 自动清理
+     */
+    public abstract void autoClean();
+
+    /**
      * 新增缓存
      *
      * @param type  原始的回调类型（网络请求回调成功或失败）

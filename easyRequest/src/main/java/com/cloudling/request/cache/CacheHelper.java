@@ -35,10 +35,10 @@ public final class CacheHelper {
         }
     }
 
-    public void init(Context context, BaseCacheImpl baseCache) {
+    public void init(Context context, BaseCacheImpl baseCacheImpl) {
         if (mContext == null && context != null) {
             mContext = context.getApplicationContext();
-            mBaseCacheImpl = new DefaultCacheImpl(mContext);
+            mBaseCacheImpl = baseCacheImpl;
         }
     }
 

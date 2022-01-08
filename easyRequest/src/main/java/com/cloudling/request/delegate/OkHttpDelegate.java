@@ -144,7 +144,7 @@ public class OkHttpDelegate implements RequestDelegate {
                 }
                 if (mRequestMap.get(config.getUUid()) != null) {
                     if (config.getListener() != null) {
-                        config.getListener().onFail(e.toString());
+                        config.getListener().onFail(result);
                         config.getListener().requestAfter();
                     }
                     removeByUUID(config.getUUid());
