@@ -6,11 +6,15 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.cloudling.request.BuildConfig;
+import com.cloudling.request.cache.AesHelper;
+import com.cloudling.request.cache.CacheHelper;
 import com.cloudling.request.cache.CacheType;
+import com.cloudling.request.cache.ReadCacheType;
 import com.cloudling.request.delegate.OkHttpDelegate;
 import com.cloudling.request.delegate.RequestDelegate;
 import com.cloudling.request.listener.ILog;
 import com.cloudling.request.type.MockRequestCallbackType;
+import com.cloudling.request.type.OriginalCallback;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -275,6 +279,8 @@ public class EasyRequest {
         if (config != null && config.mockRequest != null && config.getListener() != null) {
             /*模拟请求的不允许缓存数据，因为我们缓存的是真实网络请求返回的数据*/
             config.cacheType = CacheType.NO;
+            /*模拟请求的不允许读取缓存数据，因为取的数据是我们自己配置的*/
+            config.readCacheType = ReadCacheType.NO;
             delayTask(EasyRequest.getInstance().getHandler(), 0, new Runnable() {
                 @Override
                 public void run() {
@@ -293,7 +299,31 @@ public class EasyRequest {
                 }
             });
         } else {
-            mRequestDelegate.request(config);
+            if (config != null && (config.readCacheType == ReadCacheType.READ_SUCCESS_AT_ONCE || config.readCacheType == ReadCacheType.READ_FAIL_AT_ONCE)) {
+                String readKey = AesHelper.encryptAsString(config.getCacheKey() + (config.readCacheType == ReadCacheType.READ_SUCCESS_AT_ONCE ? OriginalCallback.SUCCESS.name() : OriginalCallback.FAILURE.name()));
+                String cache = CacheHelper.getInstance().getCache(readKey);
+                if (!TextUtils.isEmpty(cache)) {
+                    /*不允许缓存数据，因为我们已经直接读取缓存的数据*/
+                    config.cacheType = CacheType.NO;
+                    delayTask(EasyRequest.getInstance().getHandler(), 0, new Runnable() {
+                        @Override
+                        public void run() {
+                            config.getListener().requestBefore();
+                            if (config.readCacheType == ReadCacheType.READ_SUCCESS_AT_ONCE) {
+                                config.getListener().onSuccess(cache);
+                            } else if (config.readCacheType == ReadCacheType.READ_FAIL_AT_ONCE) {
+                                config.getListener().onFail(cache);
+                            }
+                            config.getListener().requestAfter();
+                        }
+                    });
+                } else {
+                    /*无缓存的数据，直接发起网络请求*/
+                    mRequestDelegate.request(config);
+                }
+            } else {
+                mRequestDelegate.request(config);
+            }
         }
     }
 

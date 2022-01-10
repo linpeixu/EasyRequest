@@ -12,8 +12,8 @@ Add it in your root build.gradle at the end of repositories:
 Step 2. Add the dependency
 ```java
     dependencies {
-	        implementation 'com.github.linpeixu:EasyRequest:1.2.3'
-            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.2.3'
+	        implementation 'com.github.linpeixu:EasyRequest:1.2.4'
+            //或者implementation 'com.gitlab.linpeixu:easyrequest:1.2.4'
 	}
 ```
 
@@ -373,6 +373,8 @@ readCache(ReadCacheType readCacheType)方法解释：
 4. ReadCacheType.READ_SUCCESS_AFTER_FAIL，表示当网络请求失败时读取成功（原始网络请求成功）的缓存数据；
 5. ReadCacheType.READ_FAIL_AFTER_FAIL，表示当网络请求失败时读取失败（原始网络请求失败）的缓存数据；
 6. ReadCacheType.DEFAULT，表示默认（跟随网络请求回调成功或失败读取对应类型的缓存数据）；
+7. ReadCacheType.READ_SUCCESS_AT_ONCE，表示优先读取成功（原始网络请求成功）的缓存数据，没有缓存则发起网络请求；
+8. ReadCacheType.READ_FAIL_AT_ONCE，表示优先读取失败（原始网络请求失败）的缓存数据，没有缓存则发起网络请求；
 
 这里我们默认实现了OkHttp的请求代理，如通过其它网路库的可自行实现RequestDelegate，然后调用下边的方法设置网路请求代理：
 

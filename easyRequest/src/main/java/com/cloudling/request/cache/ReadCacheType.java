@@ -29,5 +29,13 @@ public enum ReadCacheType {
     /**
      * 当网络请求失败时读取失败（原始网络请求失败）的缓存数据
      */
-    READ_FAIL_AFTER_FAIL
+    READ_FAIL_AFTER_FAIL,
+    /**
+     * 优先读取成功（原始网络请求成功）的缓存数据，没有缓存则发起网络请求
+     */
+    READ_SUCCESS_AT_ONCE,
+    /**
+     * 优先读取失败（原始网络请求失败）的缓存数据，没有缓存则发起网络请求
+     */
+    READ_FAIL_AT_ONCE
 }
