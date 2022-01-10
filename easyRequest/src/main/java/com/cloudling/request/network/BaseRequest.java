@@ -7,6 +7,7 @@ import com.cloudling.request.cache.AesHelper;
 import com.cloudling.request.cache.CacheHelper;
 import com.cloudling.request.cache.CacheType;
 import com.cloudling.request.cache.ReadCacheType;
+import com.cloudling.request.cache.TimeUnit;
 import com.cloudling.request.converter.BaseConverterFactory;
 import com.cloudling.request.listener.ConverterListener;
 import com.cloudling.request.listener.MockRequest;
@@ -81,6 +82,14 @@ public class BaseRequest<S, F> {
      */
     CacheType cacheType;
     /**
+     * 缓存时长
+     */
+    long saveDuration;
+    /**
+     * 缓存时长的单位
+     */
+    TimeUnit cacheTimeUnit;
+    /**
      * 读取缓存的类型
      */
     ReadCacheType readCacheType;
@@ -107,6 +116,12 @@ public class BaseRequest<S, F> {
             cacheType = CacheType.NO;
         } else {
             cacheType = builder.cacheType;
+        }
+        saveDuration = builder.saveDuration;
+        if (saveDuration != -1 && builder.cacheTimeUnit == null) {
+            cacheTimeUnit = TimeUnit.SECONDS;
+        } else {
+            cacheTimeUnit = builder.cacheTimeUnit;
         }
         if (builder.readCacheType == null) {
             readCacheType = ReadCacheType.NO;
@@ -172,7 +187,11 @@ public class BaseRequest<S, F> {
                         if (cacheType == CacheType.SOURCE_SUCCESS || cacheType == CacheType.DEFAULT) {
                             String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.SUCCESS.name());
                             EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.SUCCESS.name() + "\n执行缓存->加密key:" + writeKey);
-                            CacheHelper.getInstance().addCache(OriginalCallback.SUCCESS, writeKey, result);
+                            if (saveDuration == -1) {
+                                CacheHelper.getInstance().addCache(writeKey, result);
+                            } else {
+                                CacheHelper.getInstance().addCache(writeKey, result, saveDuration, cacheTimeUnit);
+                            }
                         }
                         EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n读取缓存->readKey:" + readKey + "\n读取缓存->cache:" + cache);
                         if (!TextUtils.isEmpty(cache)) {
@@ -201,7 +220,11 @@ public class BaseRequest<S, F> {
                         if (cacheType == CacheType.SOURCE_SUCCESS || cacheType == CacheType.DEFAULT) {
                             String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.SUCCESS.name());
                             EasyRequest.getInstance().logD("[BaseRequest-onSuccess]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.SUCCESS.name() + "\n执行缓存->加密key:" + writeKey);
-                            CacheHelper.getInstance().addCache(OriginalCallback.SUCCESS, writeKey, result);
+                            if (saveDuration == -1) {
+                                CacheHelper.getInstance().addCache(writeKey, result);
+                            } else {
+                                CacheHelper.getInstance().addCache(writeKey, result, saveDuration, cacheTimeUnit);
+                            }
                         }
                     }
                     if (EasyRequest.getInstance().getHandler() != null) {
@@ -281,7 +304,11 @@ public class BaseRequest<S, F> {
                         if (cacheType == CacheType.SOURCE_FAIL || cacheType == CacheType.DEFAULT) {
                             String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.FAILURE.name());
                             EasyRequest.getInstance().logD("[BaseRequest-onFail]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.FAILURE.name() + "\n执行缓存->加密key:" + writeKey);
-                            CacheHelper.getInstance().addCache(OriginalCallback.FAILURE, writeKey, result);
+                            if (saveDuration == -1) {
+                                CacheHelper.getInstance().addCache(writeKey, result);
+                            } else {
+                                CacheHelper.getInstance().addCache(writeKey, result, saveDuration, cacheTimeUnit);
+                            }
                         }
                         EasyRequest.getInstance().logD("[BaseRequest-onFail]\n读取缓存->readKey:" + readKey + "\n读取缓存->cache:" + cache);
                         if (!TextUtils.isEmpty(cache)) {
@@ -310,7 +337,11 @@ public class BaseRequest<S, F> {
                         if (cacheType == CacheType.SOURCE_FAIL || cacheType == CacheType.DEFAULT) {
                             String writeKey = AesHelper.encryptAsString(getCacheKey() + OriginalCallback.FAILURE.name());
                             EasyRequest.getInstance().logD("[BaseRequest-onFail]\n执行缓存->原始key:" + getCacheKey() + OriginalCallback.FAILURE.name() + "\n执行缓存->加密key:" + writeKey);
-                            CacheHelper.getInstance().addCache(OriginalCallback.FAILURE, writeKey, result);
+                            if (saveDuration == -1) {
+                                CacheHelper.getInstance().addCache(writeKey, result);
+                            } else {
+                                CacheHelper.getInstance().addCache(writeKey, result, saveDuration, cacheTimeUnit);
+                            }
                         }
                     }
                     if (EasyRequest.getInstance().getHandler() != null) {
@@ -472,6 +503,8 @@ public class BaseRequest<S, F> {
         BaseConverterFactory<S, F> converterFactory;
         ConverterListener<S, F> converterListener;
         CacheType cacheType;
+        long saveDuration;
+        TimeUnit cacheTimeUnit;
         ReadCacheType readCacheType;
         String cacheKey;
 
@@ -540,6 +573,20 @@ public class BaseRequest<S, F> {
 
         public Builder<S, F> cache(CacheType cacheType) {
             this.cacheType = cacheType;
+            this.saveDuration = -1;
+            return this;
+        }
+
+        public Builder<S, F> cache(CacheType cacheType, long saveDuration) {
+            this.cacheType = cacheType;
+            this.saveDuration = saveDuration;
+            return this;
+        }
+
+        public Builder<S, F> cache(CacheType cacheType, long saveDuration, TimeUnit timeUnit) {
+            this.cacheType = cacheType;
+            this.saveDuration = saveDuration;
+            this.cacheTimeUnit = timeUnit;
             return this;
         }
 

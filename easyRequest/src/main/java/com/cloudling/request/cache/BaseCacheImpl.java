@@ -40,32 +40,29 @@ public abstract class BaseCacheImpl {
     /**
      * 新增缓存
      *
-     * @param type  原始的回调类型（网络请求回调成功或失败）
      * @param key   缓存内容的key
      * @param value 缓存内容
      */
-    public abstract void addCache(OriginalCallback type, String key, String value);
+    public abstract void addCache(String key, String value);
 
     /**
      * 新增缓存
      *
-     * @param type     原始的回调类型（网络请求回调成功或失败）
      * @param key      缓存内容的key
      * @param value    缓存内容
      * @param duration 缓存时长
      */
-    public abstract void addCache(OriginalCallback type, String key, String value, long duration);
+    public abstract void addCache(String key, String value, long duration);
 
     /**
      * 新增缓存
      *
-     * @param type     原始的回调类型（网络请求回调成功或失败）
      * @param key      缓存内容的key
      * @param value    缓存内容
      * @param duration 缓存时长
      * @param timeUnit 时长单位
      */
-    public abstract void addCache(OriginalCallback type, String key, String value, long duration, TimeUnit timeUnit);
+    public abstract void addCache(String key, String value, long duration, TimeUnit timeUnit);
 
     /**
      * 获取缓存

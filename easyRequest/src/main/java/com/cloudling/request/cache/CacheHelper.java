@@ -42,21 +42,21 @@ public final class CacheHelper {
         }
     }
 
-    public void addCache(OriginalCallback type, String key, String value) {
+    public void addCache(String key, String value) {
         if (mBaseCacheImpl != null) {
-            mBaseCacheImpl.addCache(type, key, value);
+            mBaseCacheImpl.addCache(key, value);
         }
     }
 
-    public void addCache(OriginalCallback type, String key, String value, long duration) {
+    public void addCache(String key, String value, long duration) {
         if (mBaseCacheImpl != null) {
-            mBaseCacheImpl.addCache(type, key, value, duration);
+            mBaseCacheImpl.addCache(key, value, duration);
         }
     }
 
-    public void addCache(OriginalCallback type, String key, String value, long duration, TimeUnit timeUnit) {
+    public void addCache(String key, String value, long duration, TimeUnit timeUnit) {
         if (mBaseCacheImpl != null) {
-            mBaseCacheImpl.addCache(type, key, value, duration, timeUnit);
+            mBaseCacheImpl.addCache(key, value, duration, timeUnit);
         }
     }
 

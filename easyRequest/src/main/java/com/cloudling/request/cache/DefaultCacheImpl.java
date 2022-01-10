@@ -73,7 +73,7 @@ public final class DefaultCacheImpl extends BaseCacheImpl implements SharedPrefe
     }
 
     @Override
-    public void addCache(OriginalCallback type, String key, String value) {
+    public void addCache(String key, String value) {
         if (isCanOption(key, value)) {
             StringBuilder builder = new StringBuilder()
                     .append("{")
@@ -90,7 +90,7 @@ public final class DefaultCacheImpl extends BaseCacheImpl implements SharedPrefe
     }
 
     @Override
-    public void addCache(OriginalCallback type, String key, String value, long duration) {
+    public void addCache(String key, String value, long duration) {
         if (isCanOption(key, value)) {
             StringBuilder builder = new StringBuilder()
                     .append("{")
@@ -107,7 +107,7 @@ public final class DefaultCacheImpl extends BaseCacheImpl implements SharedPrefe
     }
 
     @Override
-    public void addCache(OriginalCallback type, String key, String value, long duration, TimeUnit timeUnit) {
+    public void addCache(String key, String value, long duration, TimeUnit timeUnit) {
         if (isCanOption(key, value)) {
             StringBuilder builder = new StringBuilder()
                     .append("{")
