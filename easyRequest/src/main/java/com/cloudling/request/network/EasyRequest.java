@@ -302,7 +302,9 @@ public class EasyRequest {
             if (config != null && (config.readCacheType == ReadCacheType.READ_SUCCESS_AT_ONCE || config.readCacheType == ReadCacheType.READ_FAIL_AT_ONCE)) {
                 String readKey = AesHelper.encryptAsString(config.getCacheKey() + (config.readCacheType == ReadCacheType.READ_SUCCESS_AT_ONCE ? OriginalCallback.SUCCESS.name() : OriginalCallback.FAILURE.name()));
                 String cache = CacheHelper.getInstance().getCache(readKey);
+                EasyRequest.getInstance().logD("[request]\n读取缓存->readKey:" + readKey + "\n读取缓存->cache:" + cache);
                 if (!TextUtils.isEmpty(cache)) {
+                    EasyRequest.getInstance().logD("[request]\n读取缓存成功");
                     /*不允许缓存数据，因为我们已经直接读取缓存的数据*/
                     config.cacheType = CacheType.NO;
                     delayTask(EasyRequest.getInstance().getHandler(), 0, new Runnable() {
