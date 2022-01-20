@@ -14,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.Proxy;
 import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,7 +47,11 @@ public class OkHttpDelegate implements RequestDelegate {
 
     public OkHttpDelegate() {
         mRequestMap = new ConcurrentHashMap<>();
-        mOkHttpClient = new OkHttpClient().newBuilder()
+        OkHttpClient.Builder builder = new OkHttpClient().newBuilder();
+        if (isDisableProxy()) {
+            builder.proxy(Proxy.NO_PROXY);
+        }
+        mOkHttpClient = builder
                 .connectTimeout(NetworkConfig.getInstance().getConnectTimeout(), TimeUnit.SECONDS)
                 .readTimeout(NetworkConfig.getInstance().getReadTimeout(), TimeUnit.SECONDS)
                 .writeTimeout(NetworkConfig.getInstance().getWriteTimeout(), TimeUnit.SECONDS)
@@ -71,7 +76,11 @@ public class OkHttpDelegate implements RequestDelegate {
 
     public OkHttpDelegate(boolean retryOnConnectionFailure) {
         mRequestMap = new ConcurrentHashMap<>();
-        mOkHttpClient = new OkHttpClient().newBuilder()
+        OkHttpClient.Builder builder = new OkHttpClient().newBuilder();
+        if (isDisableProxy()) {
+            builder.proxy(Proxy.NO_PROXY);
+        }
+        mOkHttpClient = builder
                 .retryOnConnectionFailure(retryOnConnectionFailure)
                 .connectTimeout(NetworkConfig.getInstance().getConnectTimeout(), TimeUnit.SECONDS)
                 .readTimeout(NetworkConfig.getInstance().getReadTimeout(), TimeUnit.SECONDS)
@@ -97,7 +106,11 @@ public class OkHttpDelegate implements RequestDelegate {
 
     public OkHttpDelegate(OkHttpClient okHttpClient) {
         mRequestMap = new ConcurrentHashMap<>();
-        this.mOkHttpClient = okHttpClient;
+        if (okHttpClient != null && okHttpClient.proxy() != Proxy.NO_PROXY && isDisableProxy()) {
+            this.mOkHttpClient = okHttpClient.newBuilder().proxy(Proxy.NO_PROXY).build();
+        } else {
+            this.mOkHttpClient = okHttpClient;
+        }
     }
 
     @Override
@@ -223,6 +236,11 @@ public class OkHttpDelegate implements RequestDelegate {
     @Override
     public void removeByUUID(String uuid) {
         mRequestMap.remove(uuid);
+    }
+
+    @Override
+    public boolean isDisableProxy() {
+        return NetworkConfig.getInstance().isDisableProxy();
     }
 
 }

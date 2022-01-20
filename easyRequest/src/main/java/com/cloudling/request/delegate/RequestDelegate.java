@@ -27,4 +27,9 @@ public interface RequestDelegate {
      * 通过uuid移除请求
      */
     void removeByUUID(String uuid);
+
+    /**
+     * 是否禁用代理
+     */
+    boolean isDisableProxy();
 }

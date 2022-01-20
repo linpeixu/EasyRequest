@@ -17,6 +17,11 @@ public interface SupportCallback {
     void setService(BaseService service);
 
     /**
+     * 设置当前接口请求服务类
+     */
+    void setService(BaseService service, boolean isDisableProxy);
+
+    /**
      * 设置请求头
      */
     void headers(ArrayMap<String, Object> headers);
@@ -67,4 +72,9 @@ public interface SupportCallback {
      * 用于页面异常关闭恢复数据（在Activity对应的生命周期调用）
      */
     void onCreate(Bundle outState);
+
+    /**
+     * 是否禁用代理
+     */
+    boolean isDisableProxy();
 }

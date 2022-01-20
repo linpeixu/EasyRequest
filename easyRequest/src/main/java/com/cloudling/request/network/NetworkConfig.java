@@ -20,7 +20,15 @@ import java.util.Map;
  */
 public class NetworkConfig implements SupportCallback {
     private static volatile NetworkConfig mInstance;
+    /**
+     * 接口请求服务类
+     */
     private BaseService service;
+
+    /**
+     * 是否禁用代理
+     */
+    private boolean isDisableProxy;
 
     private NetworkConfig() {
     }
@@ -49,6 +57,12 @@ public class NetworkConfig implements SupportCallback {
     @Override
     public void setService(BaseService service) {
         this.service = service;
+    }
+
+    @Override
+    public void setService(BaseService service, boolean isDisableProxy) {
+        this.service = service;
+        this.isDisableProxy = isDisableProxy;
     }
 
     @Override
@@ -127,7 +141,7 @@ public class NetworkConfig implements SupportCallback {
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-
+                outState.putBoolean("network_config_isDisableProxy", isDisableProxy);
             }
         }
     }
@@ -199,8 +213,13 @@ public class NetworkConfig implements SupportCallback {
                         return outState.getLong("network_config_writeTimeout");
                     }
                 };
-                setService(service);
+                setService(service, outState.getBoolean("network_config_isDisableProxy"));
             }
         }
+    }
+
+    @Override
+    public boolean isDisableProxy() {
+        return isDisableProxy;
     }
 }
